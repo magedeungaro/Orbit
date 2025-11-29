@@ -26,6 +26,11 @@ extends CharacterBody2D
 @export var trajectory_points: int = 60  # Number of points to calculate for trajectory
 @export var trajectory_color: Color = Color(1.0, 1.0, 0.0, 0.7)  # Yellow with some transparency
 
+# Fuel system
+@export var max_fuel: float = 1000.0  # Maximum fuel capacity (in delta-v units)
+@export var fuel_consumption_rate: float = 50.0  # Fuel consumed per second of thrust
+var current_fuel: float = 1000.0  # Current fuel level
+
 var central_bodies: Array = []  # Array of all gravitational bodies
 var orbit_trail: PackedVector2Array = []  # Stores positions along the orbit
 var trail_update_counter: int = 0  # Counter to sample every N frames
@@ -154,8 +159,8 @@ func handle_thrust_input(delta: float) -> void:
 	while thrust_angle >= 360:
 		thrust_angle -= 360
 	
-	# Apply thrust only when Space is pressed
-	if Input.is_action_pressed("ui_select"):
+	# Apply thrust only when Space is pressed AND we have fuel
+	if Input.is_action_pressed("ui_select") and current_fuel > 0:
 		# Convert angle to radians
 		var thrust_angle_rad = deg_to_rad(thrust_angle)
 		
@@ -170,8 +175,16 @@ func handle_thrust_input(delta: float) -> void:
 		if use_escape_velocity_thrust:
 			effective_thrust = calculate_escape_velocity_thrust()
 		
+		# Consume fuel
+		var fuel_used = fuel_consumption_rate * delta
+		current_fuel = max(0, current_fuel - fuel_used)
+		
 		# Apply thrust
 		velocity += (thrust_direction * effective_thrust) * delta
+
+
+func get_fuel_percentage() -> float:
+	return (current_fuel / max_fuel) * 100.0
 
 
 func calculate_sphere_of_influence() -> float:
