@@ -4,13 +4,14 @@ extends CharacterBody2D
 ## The central body exerts gravity on the orbiting body
 
 @export var thrust_force: float = 200.0  # Force applied by thrust input
-@export var gravitational_constant: float = 100000.0  # Gravitational constant
+@export var gravitational_constant: float = 500000.0  # Gravitational constant (much stronger)
 @export var gravity_adjustment_rate: float = 5000.0  # How much gravity changes per keystroke
 @export var base_sphere_of_influence: float = 500.0  # Base radius of gravitational influence
 @export var show_sphere_of_influence: bool = true  # Draw the sphere of influence
-@export var mass: float = 10.0  # Mass of this body
+@export var mass: float = 50.0  # Mass of this body (increased from 10.0)
 @export var show_velocity_vector: bool = true  # Draw velocity vector
 @export var bounce_coefficient: float = 0.8  # How much velocity is retained after bounce (0-1)
+@export var friction_coefficient: float = 0.95  # Friction/drag applied each frame (0.95 = 5% friction)
 @export var body_radius: float = 15.0  # Radius of the body for collision detection
 @export var viewport_width: float = 3000.0  # Width of play area (match ColorRect width)
 @export var viewport_height: float = 2000.0  # Height of play area (match ColorRect height)
@@ -120,6 +121,12 @@ func _physics_process(delta: float) -> void:
 	
 	# Apply gravity from all central bodies
 	apply_gravity_from_all_bodies(delta)
+	
+	# Apply friction/drag to velocity
+	velocity *= friction_coefficient
+	
+	# Rotate to face thrust direction
+	rotation = deg_to_rad(thrust_angle)
 	
 	# Move the body using velocity
 	move_and_slide()

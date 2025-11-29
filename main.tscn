@@ -1,18 +1,26 @@
-[gd_scene load_steps=7 format=3 uid="uid://cgoy04rdwt2ce"]
+[gd_scene load_steps=10 format=3 uid="uid://cgoy04rdwt2ce"]
 
 [ext_resource type="Script" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
-[ext_resource type="Texture2D" uid="uid://d0dglepoxjfb0" path="res://icon.svg" id="2_x4y2d"]
 [ext_resource type="Script" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
 [ext_resource type="PackedScene" uid="uid://dqsxdkmwt88n5" path="res://Planeja.tscn" id="3_u5sff"]
 [ext_resource type="Script" path="res://scripts/camera_follow.gd" id="4_camera"]
+[ext_resource type="Texture2D" uid="uid://fyxnlyles8s2" path="res://Assets/Sprites/Planet 2.PNG" id="5_683ew"]
+[ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="5_planet3"]
+[ext_resource type="Texture2D" uid="uid://bvev41whwp4ii" path="res://Assets/Sprites/Planet 1.PNG" id="6_planet1"]
+[ext_resource type="Texture2D" uid="uid://bxvf2ptnyrcfq" path="res://Assets/Sprites/Ship.PNG" id="7_wyn4c"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_kcy64"]
-radius = 20.0
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kc8bv"]
+size = Vector2(20, 61)
 
 [node name="Main" type="Node2D"]
 
 [node name="Earth2" parent="." instance=ExtResource("3_u5sff")]
-position = Vector2(1113, 736)
+z_index = 2
+position = Vector2(1121, 1192)
+
+[node name="Sprite2D" type="Sprite2D" parent="Earth2"]
+z_index = 1
+texture = ExtResource("5_planet3")
 
 [node name="ColorRect" type="ColorRect" parent="."]
 offset_right = 3000.0
@@ -26,13 +34,26 @@ script = ExtResource("3_orbit_vis")
 
 [node name="Earth" parent="." instance=ExtResource("3_u5sff")]
 
+[node name="Sprite2D" type="Sprite2D" parent="Earth"]
+texture = ExtResource("5_683ew")
+
 [node name="OrbitingBody" type="CharacterBody2D" parent="."]
 position = Vector2(300, 300)
 script = ExtResource("2_eevcs")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="OrbitingBody"]
-shape = SubResource("CircleShape2D_kcy64")
+position = Vector2(1, -14.5)
+shape = SubResource("RectangleShape2D_kc8bv")
 
 [node name="Sprite2D" type="Sprite2D" parent="OrbitingBody"]
-scale = Vector2(0.078125, 0.078125)
-texture = ExtResource("2_x4y2d")
+position = Vector2(1, -9)
+rotation = 0.00396934
+scale = Vector2(0.122298, 0.122298)
+texture = ExtResource("7_wyn4c")
+
+[node name="Earth3" parent="." instance=ExtResource("3_u5sff")]
+position = Vector2(2065, 544)
+
+[node name="Sprite2D" type="Sprite2D" parent="Earth3"]
+z_index = 1
+texture = ExtResource("6_planet1")
