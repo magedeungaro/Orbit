@@ -3,17 +3,19 @@ extends CharacterBody2D
 ## The orbiting body is controlled via arrow key thrust
 ## The central body exerts gravity on the orbiting body
 
-@export var thrust_force: float = 5.0  # Force applied by thrust input (reduced from 100.0)
+@export var thrust_force: float = 300.0  # Force applied by thrust input (reduced from 100.0)
 @export var gravitational_constant: float = 500000.0  # Gravitational constant (much stronger)
 @export var gravity_adjustment_rate: float = 5000.0  # How much gravity changes per keystroke
-@export var base_sphere_of_influence: float = 500.0  # Base radius of gravitational influence
+@export var base_sphere_of_influence: float = 350.0  # Base radius of gravitational influence (reduced from 500)
+@export var proximity_gravity_boost: float = 3.0  # Extra gravity multiplier at close range (1.0 = no boost)
+@export var proximity_threshold: float = 150.0  # Distance at which proximity boost starts
 @export var show_sphere_of_influence: bool = true  # Draw the sphere of influence
 @export var mass: float = 50.0  # Mass of this body (increased from 10.0)
 @export var show_velocity_vector: bool = true  # Draw velocity vector
 @export var bounce_coefficient: float = 0.8  # How much velocity is retained after bounce (0-1)
 @export var body_radius: float = 15.0  # Radius of the body for collision detection
-@export var viewport_width: float = 3000.0  # Width of play area (match ColorRect width)
-@export var viewport_height: float = 2000.0  # Height of play area (match ColorRect height)
+@export var viewport_width: float = 5000.0  # Width of play area (match ColorRect width)
+@export var viewport_height: float = 5000.0  # Height of play area (match ColorRect height)
 @export var show_orbit_trail: bool = true  # Draw the orbit trail
 @export var orbit_trail_color: Color = Color.BLUE  # Color of the orbit trail
 @export var trail_max_points: int = 500  # Maximum points to store for trail
@@ -120,6 +122,11 @@ func _physics_process(delta: float) -> void:
 	# Apply gravity from all central bodies
 	apply_gravity_from_all_bodies(delta)
 	
+	# Rotate ship to face thrust direction
+	# The sprite points UP by default, but thrust_angle 0 = RIGHT (cos/sin convention)
+	# So we subtract 90 degrees to align the sprite with the thrust vector
+	rotation = deg_to_rad(thrust_angle - 90)
+	
 	# Move the body using velocity
 	move_and_slide()
 	
@@ -151,10 +158,10 @@ func handle_thrust_input(delta: float) -> void:
 		# Convert angle to radians
 		var thrust_angle_rad = deg_to_rad(thrust_angle)
 		
-		# Calculate thrust direction
+		# Calculate thrust direction (inverted - thrust pushes opposite to where arrow points)
 		var thrust_direction = Vector2(
-			cos(thrust_angle_rad),
-			sin(thrust_angle_rad)
+			-cos(thrust_angle_rad),
+			-sin(thrust_angle_rad)
 		)
 		
 		# Determine the effective thrust force
@@ -270,6 +277,13 @@ func apply_gravity_from_all_bodies(delta: float) -> void:
 			# Calculate gravitational acceleration: a = G * M / r^2
 			var gravitational_acceleration = (gravitational_constant * body.mass) / (distance * distance)
 			
+			# Apply proximity boost - gravity gets stronger as you get closer
+			if distance < proximity_threshold:
+				# Smoothly interpolate boost from 1.0 at threshold to proximity_gravity_boost at distance 0
+				var proximity_factor = 1.0 - (distance / proximity_threshold)
+				var boost = 1.0 + (proximity_gravity_boost - 1.0) * proximity_factor
+				gravitational_acceleration *= boost
+			
 			# Apply acceleration toward this body
 			var gravity_acceleration = direction_to_center.normalized() * gravitational_acceleration
 			velocity += gravity_acceleration * delta
@@ -314,26 +328,22 @@ func update_orbit_trail() -> void:
 
 
 func _draw() -> void:
-	# Draw thrust direction indicator arrow
+	# Draw thrust direction indicator arrow (inverted - points opposite to ship facing)
+	# Arrow shows the direction the ship will accelerate (opposite to where nose points)
 	if show_thrust_indicator:
-		var thrust_angle_rad = deg_to_rad(thrust_angle)
 		var arrow_length = 60.0
-		var arrow_end = Vector2(
-			cos(thrust_angle_rad) * arrow_length,
-			sin(thrust_angle_rad) * arrow_length
-		)
+		# Arrow points DOWN in local space (opposite to sprite's forward direction)
+		# This matches the inverted thrust vector
+		var arrow_end = Vector2(0, arrow_length)  # DOWN in local space (positive Y)
 		
 		# Draw main arrow line
 		var arrow_color = Color.GREEN if Input.is_action_pressed("ui_select") else Color.GRAY
 		draw_line(Vector2.ZERO, arrow_end, arrow_color, 3.0)
 		
-		# Draw arrowhead
+		# Draw arrowhead pointing down in local space
 		var arrow_head_size = 10.0
-		var arrow_head_angle1 = thrust_angle_rad + deg_to_rad(150)
-		var arrow_head_angle2 = thrust_angle_rad - deg_to_rad(150)
-		
-		var head1 = arrow_end + Vector2(cos(arrow_head_angle1) * arrow_head_size, sin(arrow_head_angle1) * arrow_head_size)
-		var head2 = arrow_end + Vector2(cos(arrow_head_angle2) * arrow_head_size, sin(arrow_head_angle2) * arrow_head_size)
+		var head1 = arrow_end + Vector2(-arrow_head_size * 0.5, -arrow_head_size)
+		var head2 = arrow_end + Vector2(arrow_head_size * 0.5, -arrow_head_size)
 		
 		draw_line(arrow_end, head1, arrow_color, 3.0)
 		draw_line(arrow_end, head2, arrow_color, 3.0)
@@ -341,39 +351,3 @@ func _draw() -> void:
 	if show_velocity_vector and velocity.length() > 0:
 		# Draw velocity vector
 		draw_line(Vector2.ZERO, velocity.normalized() * 50, Color.RED, 2.0)
-		
-		# Draw velocity magnitude text
-		var speed_text = "Speed: %.1f" % velocity.length()
-		
-		# Get or create speed label
-		var speed_label: Label
-		if not has_node("SpeedLabel"):
-			speed_label = Label.new()
-			speed_label.name = "SpeedLabel"
-			add_child(speed_label)
-		else:
-			speed_label = get_node("SpeedLabel")
-		
-		speed_label.text = speed_text
-		speed_label.position = Vector2(10, -30)
-		speed_label.add_theme_font_size_override("font_size", 12)
-		speed_label.add_theme_color_override("font_color", Color.BLACK)
-	
-	# Display gravity info
-	var soi = calculate_sphere_of_influence()
-	var escape_vel = calculate_current_escape_velocity()
-	var current_speed = velocity.length()
-	var escape_percentage = (current_speed / escape_vel * 100.0) if escape_vel > 0 else 0.0
-	var gravity_text = "Gravity: %.0f | SOI: %.0f\nEscape V: %.1f (%.0f%%)\nThrust Angle: %.0f°\n(LEFT/RIGHT to rotate, SPACE to thrust)" % [gravitational_constant, soi, escape_vel, escape_percentage, thrust_angle]
-	var gravity_label: Label
-	if not has_node("GravityLabel"):
-		gravity_label = Label.new()
-		gravity_label.name = "GravityLabel"
-		add_child(gravity_label)
-	else:
-		gravity_label = get_node("GravityLabel")
-	
-	gravity_label.text = gravity_text
-	gravity_label.position = Vector2(10, -80)
-	gravity_label.add_theme_font_size_override("font_size", 12)
-	gravity_label.add_theme_color_override("font_color", Color.BLACK)
