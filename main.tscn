@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://cgoy04rdwt2ce"]
+[gd_scene load_steps=13 format=3 uid="uid://cgoy04rdwt2ce"]
 
 [ext_resource type="Script" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
 [ext_resource type="Script" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://bxvf2ptnyrcfq" path="res://Assets/Sprites/Ship.PNG" id="7_wyn4c"]
 [ext_resource type="Script" path="res://scripts/hud.gd" id="8_hud"]
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="9_bg"]
+[ext_resource type="Script" path="res://scripts/game_manager.gd" id="10_game_mgr"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kc8bv"]
 size = Vector2(20, 61)
@@ -56,6 +57,7 @@ script = ExtResource("2_eevcs")
 thrust_force = 30.0
 mass = 1000.0
 trajectory_color = Color(1, 0.309804, 0, 0.701961)
+max_fuel = 750.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="OrbitingBody"]
 position = Vector2(1, -14.5)
@@ -75,3 +77,6 @@ position = Vector2(3801, 2118)
 
 [node name="Sprite2D" type="Sprite2D" parent="Earth3"]
 texture = ExtResource("6_planet1")
+
+[node name="GameManager" type="CanvasLayer" parent="."]
+script = ExtResource("10_game_mgr")

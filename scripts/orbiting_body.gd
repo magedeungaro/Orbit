@@ -38,6 +38,15 @@ var thrust_angle: float = 0.0  # Current thrust direction angle in degrees
 var gravity_debug_printed: bool = false  # Flag to print gravity debug info only once
 var predicted_trajectory: PackedVector2Array = []  # Stores predicted future positions
 
+# Orbit stability tracking for win condition
+var target_body: Node2D = null  # The target planet (Earth3)
+var time_in_stable_orbit: float = 0.0  # Time spent in stable orbit
+var orbit_distance_samples: Array[float] = []  # Recent distance samples for stability check
+var last_orbit_angle: float = 0.0  # For tracking orbital progress
+var total_orbit_angle: float = 0.0  # Total angle traveled around target
+@export var stable_orbit_time_required: float = 10.0  # Seconds needed in stable orbit to win
+@export var orbit_stability_threshold: float = 50.0  # Max distance variance for stable orbit
+
 
 func _ready() -> void:
 	# Get references to all nodes with central_body script attached
@@ -70,11 +79,18 @@ func _ready() -> void:
 				print("      └─ mass: %.1f" % body.get("mass"))
 			else:
 				print("      └─ mass: UNABLE TO ACCESS")
+			# Find Earth3 as the target planet
+			if body.name == "Earth3":
+				target_body = body
+				print("      └─ ★ TARGET PLANET")
 		print("Controls:")
 		print("  Arrow keys LEFT/RIGHT - Rotate thrust direction")
 		print("  Space - Apply thrust")
-		print("  W - Increase gravity")
-		print("  S - Decrease gravity")
+	
+	if target_body != null:
+		print("✓ Target planet set: %s" % target_body.name)
+	else:
+		print("WARNING: No target planet (Earth3) found!")
 
 
 func _find_all_nodes_with_script(node: Node, script_name: String) -> Array:
@@ -142,6 +158,9 @@ func _physics_process(delta: float) -> void:
 	# Calculate predicted trajectory
 	calculate_trajectory()
 	
+	# Check orbit stability for win condition
+	check_orbit_stability(delta)
+	
 	# Queue redraw for debug visualization
 	queue_redraw()
 
@@ -185,6 +204,69 @@ func handle_thrust_input(delta: float) -> void:
 
 func get_fuel_percentage() -> float:
 	return (current_fuel / max_fuel) * 100.0
+
+
+func check_orbit_stability(delta: float) -> void:
+	# Check if we're in a stable orbit around the target planet (Earth3)
+	if target_body == null:
+		return
+	
+	var to_target = target_body.global_position - global_position
+	var distance = to_target.length()
+	var soi = calculate_sphere_of_influence()
+	
+	# Check if we're within the target's sphere of influence
+	if distance > soi or distance < 50.0:  # Not in SOI or too close (crashed)
+		# Reset orbit tracking
+		time_in_stable_orbit = 0.0
+		orbit_distance_samples.clear()
+		total_orbit_angle = 0.0
+		return
+	
+	# Track distance samples for stability check
+	orbit_distance_samples.append(distance)
+	if orbit_distance_samples.size() > 60:  # Keep last ~1 second of samples at 60fps
+		orbit_distance_samples.remove_at(0)
+	
+	# Calculate orbit angle progress
+	var current_angle = atan2(to_target.y, to_target.x)
+	if orbit_distance_samples.size() > 1:
+		var angle_diff = current_angle - last_orbit_angle
+		# Handle angle wrapping
+		if angle_diff > PI:
+			angle_diff -= TAU
+		elif angle_diff < -PI:
+			angle_diff += TAU
+		total_orbit_angle += abs(angle_diff)
+	last_orbit_angle = current_angle
+	
+	# Check orbit stability (distance variance)
+	if orbit_distance_samples.size() >= 30:
+		var min_dist = orbit_distance_samples.min()
+		var max_dist = orbit_distance_samples.max()
+		var variance = max_dist - min_dist
+		
+		# Orbit is stable if variance is low and we've completed some angular distance
+		if variance <= orbit_stability_threshold and total_orbit_angle > PI:  # At least half orbit
+			time_in_stable_orbit += delta
+		else:
+			time_in_stable_orbit = max(0, time_in_stable_orbit - delta * 0.5)  # Decay slowly
+
+
+func is_in_stable_orbit() -> bool:
+	return time_in_stable_orbit >= stable_orbit_time_required
+
+
+func get_orbit_progress() -> float:
+	# Returns 0.0 to 1.0 progress toward stable orbit
+	return min(time_in_stable_orbit / stable_orbit_time_required, 1.0)
+
+
+func reset_orbit_tracking() -> void:
+	time_in_stable_orbit = 0.0
+	orbit_distance_samples.clear()
+	total_orbit_angle = 0.0
+	last_orbit_angle = 0.0
 
 
 func calculate_sphere_of_influence() -> float:
