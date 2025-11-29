@@ -1,11 +1,7 @@
 extends Node2D
+## Main test scene that sets up the orbital mechanics demo
 
-
-# Called when the node enters the scene tree for the first time.
 func _ready():
-	pass # Replace with function body.
-
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta):
-	pass
+	# Load and instantiate the orbit controller
+	var orbit_controller = preload("res://scripts/orbit_controller.gd").new()
+	add_child(orbit_controller)

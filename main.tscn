@@ -1,0 +1,43 @@
+[gd_scene load_steps=7 format=3 uid="uid://cgoy04rdwt2ce"]
+
+[ext_resource type="Script" path="res://scripts/central_body.gd" id="1_c8vfs"]
+[ext_resource type="Script" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
+[ext_resource type="Texture2D" uid="uid://d0dglepoxjfb0" path="res://icon.svg" id="2_x4y2d"]
+[ext_resource type="Script" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
+
+[sub_resource type="CircleShape2D" id="1"]
+radius = 58.6941
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_kcy64"]
+
+[node name="Main" type="Node2D"]
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_right = 1152.0
+offset_bottom = 648.0
+
+[node name="OrbitVisualization" type="Node2D" parent="."]
+script = ExtResource("3_orbit_vis")
+
+[node name="CentralBody" type="CharacterBody2D" parent="."]
+position = Vector2(502, 328)
+script = ExtResource("1_c8vfs")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CentralBody"]
+shape = SubResource("1")
+
+[node name="Sprite2D" type="Sprite2D" parent="CentralBody"]
+position = Vector2(-0.250015, -0.537674)
+scale = Vector2(0.691406, 0.672464)
+texture = ExtResource("2_x4y2d")
+
+[node name="OrbitingBody" type="CharacterBody2D" parent="."]
+position = Vector2(300, 300)
+script = ExtResource("2_eevcs")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="OrbitingBody"]
+shape = SubResource("CircleShape2D_kcy64")
+
+[node name="Sprite2D" type="Sprite2D" parent="OrbitingBody"]
+scale = Vector2(0.078125, 0.078125)
+texture = ExtResource("2_x4y2d")
