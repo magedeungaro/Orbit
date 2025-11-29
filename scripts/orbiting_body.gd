@@ -12,14 +12,15 @@ extends CharacterBody2D
 @export var mass: float = 50.0  # Mass of this body (increased from 10.0)
 @export var bounce_coefficient: float = 0.8  # How much velocity is retained after bounce (0-1)
 @export var body_radius: float = 15.0  # Radius of the body for collision detection
-@export var viewport_width: float = 20000.0  # Width of play area
-@export var viewport_height: float = 20000.0  # Height of play area
+@export var boundary_left: float = -5000.0  # Left boundary of play area
+@export var boundary_top: float = -5000.0  # Top boundary of play area
+@export var boundary_right: float = 25000.0  # Right boundary of play area
+@export var boundary_bottom: float = 25000.0  # Bottom boundary of play area
 @export var show_orbit_trail: bool = true  # Draw the orbit trail
 @export var orbit_trail_color: Color = Color.BLUE  # Color of the orbit trail
 @export var trail_max_points: int = 500  # Maximum points to store for trail
 @export var use_escape_velocity_thrust: bool = false  # Scale thrust to achieve escape velocity (disabled for controlled movement)
 @export var thrust_angle_rotation_speed: float = 180.0  # Degrees per second for rotating thrust direction
-@export var show_thrust_indicator: bool = true  # Draw arrow showing thrust direction
 @export var show_trajectory: bool = true  # Draw predicted trajectory
 @export var trajectory_prediction_time: float = 5.0  # How far into the future to predict (seconds)
 @export var trajectory_points: int = 60  # Number of points to calculate for trajectory
@@ -319,18 +320,18 @@ func calculate_trajectory() -> void:
 		sim_pos += sim_vel * time_step
 		
 		# Handle boundary bounces in simulation
-		if sim_pos.x < body_radius:
-			sim_pos.x = body_radius
+		if sim_pos.x < boundary_left + body_radius:
+			sim_pos.x = boundary_left + body_radius
 			sim_vel.x = abs(sim_vel.x) * bounce_coefficient
-		elif sim_pos.x > viewport_width - body_radius:
-			sim_pos.x = viewport_width - body_radius
+		elif sim_pos.x > boundary_right - body_radius:
+			sim_pos.x = boundary_right - body_radius
 			sim_vel.x = -abs(sim_vel.x) * bounce_coefficient
 		
-		if sim_pos.y < body_radius:
-			sim_pos.y = body_radius
+		if sim_pos.y < boundary_top + body_radius:
+			sim_pos.y = boundary_top + body_radius
 			sim_vel.y = abs(sim_vel.y) * bounce_coefficient
-		elif sim_pos.y > viewport_height - body_radius:
-			sim_pos.y = viewport_height - body_radius
+		elif sim_pos.y > boundary_bottom - body_radius:
+			sim_pos.y = boundary_bottom - body_radius
 			sim_vel.y = -abs(sim_vel.y) * bounce_coefficient
 		
 		# Store predicted position
@@ -339,22 +340,22 @@ func calculate_trajectory() -> void:
 
 func handle_screen_bounce() -> void:
 	# Check left and right boundaries
-	if global_position.x - body_radius < 0:
-		global_position.x = body_radius
+	if global_position.x - body_radius < boundary_left:
+		global_position.x = boundary_left + body_radius
 		velocity.x = abs(velocity.x) * bounce_coefficient
 		print("Bounced off left wall")
-	elif global_position.x + body_radius > viewport_width:
-		global_position.x = viewport_width - body_radius
+	elif global_position.x + body_radius > boundary_right:
+		global_position.x = boundary_right - body_radius
 		velocity.x = -abs(velocity.x) * bounce_coefficient
 		print("Bounced off right wall")
 	
 	# Check top and bottom boundaries
-	if global_position.y - body_radius < 0:
-		global_position.y = body_radius
+	if global_position.y - body_radius < boundary_top:
+		global_position.y = boundary_top + body_radius
 		velocity.y = abs(velocity.y) * bounce_coefficient
 		print("Bounced off top wall")
-	elif global_position.y + body_radius > viewport_height:
-		global_position.y = viewport_height - body_radius
+	elif global_position.y + body_radius > boundary_bottom:
+		global_position.y = boundary_bottom - body_radius
 		velocity.y = -abs(velocity.y) * bounce_coefficient
 		print("Bounced off bottom wall")
 
@@ -411,23 +412,3 @@ func _draw() -> void:
 				else:
 					current_pos += gap_length
 				is_dot = not is_dot
-	
-	# Draw thrust direction indicator arrow (inverted - points opposite to ship facing)
-	# Arrow shows the direction the ship will accelerate (opposite to where nose points)
-	if show_thrust_indicator:
-		var arrow_length = 60.0
-		# Arrow points DOWN in local space (opposite to sprite's forward direction)
-		# This matches the inverted thrust vector
-		var arrow_end = Vector2(0, arrow_length)  # DOWN in local space (positive Y)
-		
-		# Draw main arrow line
-		var arrow_color = Color.GREEN if Input.is_action_pressed("ui_select") else Color.GRAY
-		draw_line(Vector2.ZERO, arrow_end, arrow_color, 3.0)
-		
-		# Draw arrowhead pointing down in local space
-		var arrow_head_size = 10.0
-		var head1 = arrow_end + Vector2(-arrow_head_size * 0.5, -arrow_head_size)
-		var head2 = arrow_end + Vector2(arrow_head_size * 0.5, -arrow_head_size)
-		
-		draw_line(arrow_end, head1, arrow_color, 3.0)
-		draw_line(arrow_end, head2, arrow_color, 3.0)
