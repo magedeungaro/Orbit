@@ -5,7 +5,6 @@ extends CharacterBody2D
 
 @export var thrust_force: float = 300.0  # Force applied by thrust input (reduced from 100.0)
 @export var gravitational_constant: float = 500000.0  # Gravitational constant (much stronger)
-@export var gravity_adjustment_rate: float = 5000.0  # How much gravity changes per keystroke
 @export var base_sphere_of_influence: float = 350.0  # Base radius of gravitational influence (reduced from 500)
 @export var proximity_gravity_boost: float = 3.0  # Extra gravity multiplier at close range (1.0 = no boost)
 @export var proximity_threshold: float = 150.0  # Distance at which proximity boost starts
@@ -22,15 +21,17 @@ extends CharacterBody2D
 @export var use_escape_velocity_thrust: bool = false  # Scale thrust to achieve escape velocity (disabled for controlled movement)
 @export var thrust_angle_rotation_speed: float = 180.0  # Degrees per second for rotating thrust direction
 @export var show_thrust_indicator: bool = true  # Draw arrow showing thrust direction
-@export var show_trajectory: bool = false  # Draw predicted trajectory (disabled)
-@export var trajectory_prediction_time: float = 3.0  # How far into the future to predict (seconds)
-@export var trajectory_points: int = 30  # Number of points to calculate for trajectory
+@export var show_trajectory: bool = true  # Draw predicted trajectory
+@export var trajectory_prediction_time: float = 5.0  # How far into the future to predict (seconds)
+@export var trajectory_points: int = 60  # Number of points to calculate for trajectory
+@export var trajectory_color: Color = Color(1.0, 1.0, 0.0, 0.7)  # Yellow with some transparency
 
 var central_bodies: Array = []  # Array of all gravitational bodies
 var orbit_trail: PackedVector2Array = []  # Stores positions along the orbit
 var trail_update_counter: int = 0  # Counter to sample every N frames
 var thrust_angle: float = 0.0  # Current thrust direction angle in degrees
 var gravity_debug_printed: bool = false  # Flag to print gravity debug info only once
+var predicted_trajectory: PackedVector2Array = []  # Stores predicted future positions
 
 
 func _ready() -> void:
@@ -116,9 +117,6 @@ func _physics_process(delta: float) -> void:
 	# Handle thrust input
 	handle_thrust_input(delta)
 	
-	# Handle gravity control input
-	handle_gravity_input()
-	
 	# Apply gravity from all central bodies
 	apply_gravity_from_all_bodies(delta)
 	
@@ -135,6 +133,9 @@ func _physics_process(delta: float) -> void:
 	
 	# Update orbit trail
 	update_orbit_trail()
+	
+	# Calculate predicted trajectory
+	calculate_trajectory()
 	
 	# Queue redraw for debug visualization
 	queue_redraw()
@@ -171,18 +172,6 @@ func handle_thrust_input(delta: float) -> void:
 		
 		# Apply thrust
 		velocity += (thrust_direction * effective_thrust) * delta
-
-
-func handle_gravity_input() -> void:
-	# Increase gravity with W key
-	if Input.is_key_pressed(KEY_W):
-		gravitational_constant += gravity_adjustment_rate * get_physics_process_delta_time()
-		print("Gravity increased to: %.0f" % gravitational_constant)
-	
-	# Decrease gravity with S key
-	if Input.is_key_pressed(KEY_S):
-		gravitational_constant = max(0, gravitational_constant - gravity_adjustment_rate * get_physics_process_delta_time())
-		print("Gravity decreased to: %.0f" % gravitational_constant)
 
 
 func calculate_sphere_of_influence() -> float:
@@ -289,6 +278,66 @@ func apply_gravity_from_all_bodies(delta: float) -> void:
 			velocity += gravity_acceleration * delta
 
 
+func calculate_trajectory() -> void:
+	# Calculate predicted trajectory by simulating future movement
+	predicted_trajectory.clear()
+	
+	if not show_trajectory:
+		return
+	
+	# Start from current state
+	var sim_pos = global_position
+	var sim_vel = velocity
+	var time_step = trajectory_prediction_time / trajectory_points
+	
+	# Add starting point
+	predicted_trajectory.append(sim_pos)
+	
+	# Simulate future positions
+	for i in range(trajectory_points):
+		# Apply gravity from all bodies
+		for body in central_bodies:
+			if body == null:
+				continue
+			
+			var direction_to_center = body.global_position - sim_pos
+			var distance = direction_to_center.length()
+			var soi = calculate_sphere_of_influence()
+			
+			if distance > 1.0 and distance <= soi:
+				var gravitational_acceleration = (gravitational_constant * body.mass) / (distance * distance)
+				
+				# Apply proximity boost
+				if distance < proximity_threshold:
+					var proximity_factor = 1.0 - (distance / proximity_threshold)
+					var boost = 1.0 + (proximity_gravity_boost - 1.0) * proximity_factor
+					gravitational_acceleration *= boost
+				
+				var gravity_dir = direction_to_center.normalized()
+				sim_vel += gravity_dir * gravitational_acceleration * time_step
+		
+		# Update position
+		sim_pos += sim_vel * time_step
+		
+		# Handle boundary bounces in simulation
+		if sim_pos.x < body_radius:
+			sim_pos.x = body_radius
+			sim_vel.x = abs(sim_vel.x) * bounce_coefficient
+		elif sim_pos.x > viewport_width - body_radius:
+			sim_pos.x = viewport_width - body_radius
+			sim_vel.x = -abs(sim_vel.x) * bounce_coefficient
+		
+		if sim_pos.y < body_radius:
+			sim_pos.y = body_radius
+			sim_vel.y = abs(sim_vel.y) * bounce_coefficient
+		elif sim_pos.y > viewport_height - body_radius:
+			sim_pos.y = viewport_height - body_radius
+			sim_vel.y = -abs(sim_vel.y) * bounce_coefficient
+		
+		# Store predicted position
+		predicted_trajectory.append(sim_pos)
+
+
 func handle_screen_bounce() -> void:
 	# Check left and right boundaries
 	if global_position.x - body_radius < 0:
@@ -328,6 +377,42 @@ func update_orbit_trail() -> void:
 
 
 func _draw() -> void:
+	# Draw predicted trajectory as dotted line
+	if show_trajectory and predicted_trajectory.size() > 1:
+		var dot_length = 8.0  # Length of each dot
+		var gap_length = 12.0  # Gap between dots
+		
+		for i in range(predicted_trajectory.size() - 1):
+			# Convert from global to local coordinates
+			var start_global = predicted_trajectory[i]
+			var end_global = predicted_trajectory[i + 1]
+			var start_local = to_local(start_global)
+			var end_local = to_local(end_global)
+			
+			# Calculate segment properties
+			var segment = end_local - start_local
+			var segment_length = segment.length()
+			var segment_dir = segment.normalized()
+			
+			# Draw dotted segment
+			var current_pos = 0.0
+			var is_dot = true
+			
+			while current_pos < segment_length:
+				var next_pos: float
+				if is_dot:
+					next_pos = min(current_pos + dot_length, segment_length)
+					var p1 = start_local + segment_dir * current_pos
+					var p2 = start_local + segment_dir * next_pos
+					# Fade color based on distance into prediction
+					var fade = 1.0 - (float(i) / predicted_trajectory.size()) * 0.7
+					var faded_color = Color(trajectory_color.r, trajectory_color.g, trajectory_color.b, trajectory_color.a * fade)
+					draw_line(p1, p2, faded_color, 2.0)
+					current_pos = next_pos + gap_length
+				else:
+					current_pos += gap_length
+				is_dot = not is_dot
+	
 	# Draw thrust direction indicator arrow (inverted - points opposite to ship facing)
 	# Arrow shows the direction the ship will accelerate (opposite to where nose points)
 	if show_thrust_indicator:
