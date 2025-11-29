@@ -40,6 +40,8 @@ texture = ExtResource("5_683ew")
 [node name="OrbitingBody" type="CharacterBody2D" parent="."]
 position = Vector2(300, 300)
 script = ExtResource("2_eevcs")
+thrust_force = 0.0
+mass = 500.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="OrbitingBody"]
 position = Vector2(1, -14.5)

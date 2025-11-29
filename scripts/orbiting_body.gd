@@ -3,7 +3,7 @@ extends CharacterBody2D
 ## The orbiting body is controlled via arrow key thrust
 ## The central body exerts gravity on the orbiting body
 
-@export var thrust_force: float = 200.0  # Force applied by thrust input
+@export var thrust_force: float = 5.0  # Force applied by thrust input (reduced from 100.0)
 @export var gravitational_constant: float = 500000.0  # Gravitational constant (much stronger)
 @export var gravity_adjustment_rate: float = 5000.0  # How much gravity changes per keystroke
 @export var base_sphere_of_influence: float = 500.0  # Base radius of gravitational influence
@@ -11,17 +11,16 @@ extends CharacterBody2D
 @export var mass: float = 50.0  # Mass of this body (increased from 10.0)
 @export var show_velocity_vector: bool = true  # Draw velocity vector
 @export var bounce_coefficient: float = 0.8  # How much velocity is retained after bounce (0-1)
-@export var friction_coefficient: float = 0.95  # Friction/drag applied each frame (0.95 = 5% friction)
 @export var body_radius: float = 15.0  # Radius of the body for collision detection
 @export var viewport_width: float = 3000.0  # Width of play area (match ColorRect width)
 @export var viewport_height: float = 2000.0  # Height of play area (match ColorRect height)
 @export var show_orbit_trail: bool = true  # Draw the orbit trail
 @export var orbit_trail_color: Color = Color.BLUE  # Color of the orbit trail
 @export var trail_max_points: int = 500  # Maximum points to store for trail
-@export var use_escape_velocity_thrust: bool = true  # Scale thrust to achieve escape velocity
+@export var use_escape_velocity_thrust: bool = false  # Scale thrust to achieve escape velocity (disabled for controlled movement)
 @export var thrust_angle_rotation_speed: float = 180.0  # Degrees per second for rotating thrust direction
 @export var show_thrust_indicator: bool = true  # Draw arrow showing thrust direction
-@export var show_trajectory: bool = true  # Draw predicted trajectory
+@export var show_trajectory: bool = false  # Draw predicted trajectory (disabled)
 @export var trajectory_prediction_time: float = 3.0  # How far into the future to predict (seconds)
 @export var trajectory_points: int = 30  # Number of points to calculate for trajectory
 
@@ -29,7 +28,6 @@ var central_bodies: Array = []  # Array of all gravitational bodies
 var orbit_trail: PackedVector2Array = []  # Stores positions along the orbit
 var trail_update_counter: int = 0  # Counter to sample every N frames
 var thrust_angle: float = 0.0  # Current thrust direction angle in degrees
-var predicted_trajectory: PackedVector2Array = []  # Predicted future positions
 var gravity_debug_printed: bool = false  # Flag to print gravity debug info only once
 
 
@@ -122,12 +120,6 @@ func _physics_process(delta: float) -> void:
 	# Apply gravity from all central bodies
 	apply_gravity_from_all_bodies(delta)
 	
-	# Apply friction/drag to velocity
-	velocity *= friction_coefficient
-	
-	# Rotate to face thrust direction
-	rotation = deg_to_rad(thrust_angle)
-	
 	# Move the body using velocity
 	move_and_slide()
 	
@@ -136,9 +128,6 @@ func _physics_process(delta: float) -> void:
 	
 	# Update orbit trail
 	update_orbit_trail()
-	
-	# Calculate predicted trajectory
-	calculate_predicted_trajectory()
 	
 	# Queue redraw for debug visualization
 	queue_redraw()
@@ -324,66 +313,7 @@ func update_orbit_trail() -> void:
 			orbit_trail.remove_at(0)
 
 
-func calculate_predicted_trajectory() -> void:
-	# Predict the trajectory based on current velocity and gravity
-	predicted_trajectory.clear()
-	
-	var sim_position = global_position
-	var sim_velocity = velocity
-	var time_step = trajectory_prediction_time / trajectory_points
-	
-	for i in range(trajectory_points):
-		# Add current position to trajectory
-		predicted_trajectory.append(sim_position)
-		
-		# Apply gravity from all bodies
-		for body in central_bodies:
-			var direction_to_center = body.global_position - sim_position
-			var distance = direction_to_center.length()
-			var soi = calculate_sphere_of_influence()
-			
-			# Only apply gravity if within sphere of influence
-			if distance > 1.0 and distance <= soi:
-				var gravitational_acceleration = (gravitational_constant * body.mass) / (distance * distance)
-				var gravity_acceleration = direction_to_center.normalized() * gravitational_acceleration
-				sim_velocity += gravity_acceleration * time_step
-		
-		# Apply thrust if space is pressed
-		if Input.is_action_pressed("ui_select"):
-			var thrust_angle_rad = deg_to_rad(thrust_angle)
-			var thrust_direction = Vector2(
-				cos(thrust_angle_rad),
-				sin(thrust_angle_rad)
-			)
-			var effective_thrust = thrust_force
-			if use_escape_velocity_thrust:
-				# Find closest body for escape velocity calculation
-				var closest_body = null
-				var closest_distance = INF
-				for body in central_bodies:
-					var dist = (body.global_position - sim_position).length()
-					if dist < closest_distance:
-						closest_distance = dist
-						closest_body = body
-				
-				if closest_body != null and closest_distance > 1.0:
-					var escape_vel = sqrt((2.0 * gravitational_constant * closest_body.mass) / closest_distance)
-					effective_thrust = (escape_vel / 5.0) * mass
-			
-			sim_velocity += thrust_direction * effective_thrust * time_step
-		
-		# Update position
-		sim_position += sim_velocity * time_step
-
-
 func _draw() -> void:
-	# Draw predicted trajectory as dotted line
-	if show_trajectory and predicted_trajectory.size() > 1:
-		for i in range(predicted_trajectory.size() - 1):
-			# Draw segments as dashed line (every other segment to create dotted effect)
-			if i % 2 == 0:
-				draw_line(predicted_trajectory[i], predicted_trajectory[i + 1], Color.YELLOW, 1.0)
-	
 	# Draw thrust direction indicator arrow
 	if show_thrust_indicator:
 		var thrust_angle_rad = deg_to_rad(thrust_angle)
