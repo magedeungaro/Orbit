@@ -10,11 +10,10 @@ extends CharacterBody2D
 @export var proximity_threshold: float = 150.0  # Distance at which proximity boost starts
 @export var show_sphere_of_influence: bool = true  # Draw the sphere of influence
 @export var mass: float = 50.0  # Mass of this body (increased from 10.0)
-@export var show_velocity_vector: bool = true  # Draw velocity vector
 @export var bounce_coefficient: float = 0.8  # How much velocity is retained after bounce (0-1)
 @export var body_radius: float = 15.0  # Radius of the body for collision detection
-@export var viewport_width: float = 5000.0  # Width of play area (match ColorRect width)
-@export var viewport_height: float = 5000.0  # Height of play area (match ColorRect height)
+@export var viewport_width: float = 20000.0  # Width of play area
+@export var viewport_height: float = 20000.0  # Height of play area
 @export var show_orbit_trail: bool = true  # Draw the orbit trail
 @export var orbit_trail_color: Color = Color.BLUE  # Color of the orbit trail
 @export var trail_max_points: int = 500  # Maximum points to store for trail
@@ -432,7 +431,3 @@ func _draw() -> void:
 		
 		draw_line(arrow_end, head1, arrow_color, 3.0)
 		draw_line(arrow_end, head2, arrow_color, 3.0)
-	
-	if show_velocity_vector and velocity.length() > 0:
-		# Draw velocity vector
-		draw_line(Vector2.ZERO, velocity.normalized() * 50, Color.RED, 2.0)
