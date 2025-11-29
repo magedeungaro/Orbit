@@ -12,28 +12,103 @@ extends CharacterBody2D
 @export var show_velocity_vector: bool = true  # Draw velocity vector
 @export var bounce_coefficient: float = 0.8  # How much velocity is retained after bounce (0-1)
 @export var body_radius: float = 15.0  # Radius of the body for collision detection
+@export var viewport_width: float = 3000.0  # Width of play area (match ColorRect width)
+@export var viewport_height: float = 2000.0  # Height of play area (match ColorRect height)
 @export var show_orbit_trail: bool = true  # Draw the orbit trail
 @export var orbit_trail_color: Color = Color.BLUE  # Color of the orbit trail
 @export var trail_max_points: int = 500  # Maximum points to store for trail
 @export var use_escape_velocity_thrust: bool = true  # Scale thrust to achieve escape velocity
+@export var thrust_angle_rotation_speed: float = 180.0  # Degrees per second for rotating thrust direction
+@export var show_thrust_indicator: bool = true  # Draw arrow showing thrust direction
+@export var show_trajectory: bool = true  # Draw predicted trajectory
+@export var trajectory_prediction_time: float = 3.0  # How far into the future to predict (seconds)
+@export var trajectory_points: int = 30  # Number of points to calculate for trajectory
 
-var central_body: CharacterBody2D
+var central_bodies: Array = []  # Array of all gravitational bodies
 var orbit_trail: PackedVector2Array = []  # Stores positions along the orbit
 var trail_update_counter: int = 0  # Counter to sample every N frames
+var thrust_angle: float = 0.0  # Current thrust direction angle in degrees
+var predicted_trajectory: PackedVector2Array = []  # Predicted future positions
+var gravity_debug_printed: bool = false  # Flag to print gravity debug info only once
 
 
 func _ready() -> void:
-	# Get reference to central body
-	central_body = get_parent().get_node("CentralBody")
+	# Get references to all nodes with central_body script attached
+	var root = get_tree().root
 	
-	if central_body == null:
-		print("Error: Could not find CentralBody node!")
+	# First, try to find nodes that have the central_body.gd script
+	central_bodies = _find_all_nodes_with_script(root, "central_body")
+	
+	if central_bodies.is_empty():
+		print("No nodes with central_body.gd script found, trying by name 'CentralBody'...")
+		central_bodies = _find_all_nodes_by_name(root, "CentralBody")
+	
+	if central_bodies.is_empty():
+		print("Still no match, trying 'Earth'...")
+		central_bodies = _find_all_nodes_by_name(root, "Earth")
+	
+	if central_bodies.is_empty():
+		print("ERROR: No gravitational bodies found in scene!")
+		print("Full scene tree:")
+		_print_scene_tree(root, 0)
 	else:
-		print("Orbiting body initialized")
+		print("✓ Orbiting body initialized with %d gravitational bodies" % central_bodies.size())
+		for i in range(central_bodies.size()):
+			var body = central_bodies[i]
+			print("  [%d] %s (type: %s) at %v" % [i + 1, body.name, body.get_class(), body.global_position])
+			# Try to access mass - it should be an export variable
+			if body.has_meta("mass"):
+				print("      └─ mass (meta): %.1f" % body.get_meta("mass"))
+			elif body.get("mass") != null:
+				print("      └─ mass: %.1f" % body.get("mass"))
+			else:
+				print("      └─ mass: UNABLE TO ACCESS")
 		print("Controls:")
-		print("  Arrow keys - Apply thrust")
+		print("  Arrow keys LEFT/RIGHT - Rotate thrust direction")
+		print("  Space - Apply thrust")
 		print("  W - Increase gravity")
 		print("  S - Decrease gravity")
+
+
+func _find_all_nodes_with_script(node: Node, script_name: String) -> Array:
+	## Recursively find all nodes that have a script matching the given name
+	var result: Array = []
+	
+	# Check if this node has a script and matches the name
+	if node.get_script() != null:
+		var script_filename = node.get_script().resource_path.get_file().trim_suffix(".gd")
+		if script_filename == script_name:
+			result.append(node)
+	
+	# Recursively check children
+	for child in node.get_children():
+		result.append_array(_find_all_nodes_with_script(child, script_name))
+	
+	return result
+
+
+func _find_all_nodes_by_name(node: Node, node_name: String) -> Array:
+	## Recursively find all nodes with a specific name
+	var result: Array = []
+	
+	if node.name == node_name:
+		result.append(node)
+	
+	# Recursively check children
+	for child in node.get_children():
+		result.append_array(_find_all_nodes_by_name(child, node_name))
+	
+	return result
+
+
+func _print_scene_tree(node: Node, indent: int = 0) -> void:
+	## Print the scene tree for debugging
+	var indent_str = ""
+	for _i in range(indent):
+		indent_str += "  "
+	print("%s- %s" % [indent_str, node.name])
+	for child in node.get_children():
+		_print_scene_tree(child, indent + 1)
 
 
 func _physics_process(delta: float) -> void:
@@ -43,9 +118,8 @@ func _physics_process(delta: float) -> void:
 	# Handle gravity control input
 	handle_gravity_input()
 	
-	# Apply gravity from central body
-	if central_body != null:
-		apply_gravity_from_central_body(delta)
+	# Apply gravity from all central bodies
+	apply_gravity_from_all_bodies(delta)
 	
 	# Move the body using velocity
 	move_and_slide()
@@ -56,38 +130,44 @@ func _physics_process(delta: float) -> void:
 	# Update orbit trail
 	update_orbit_trail()
 	
+	# Calculate predicted trajectory
+	calculate_predicted_trajectory()
+	
 	# Queue redraw for debug visualization
 	queue_redraw()
 
 
 func handle_thrust_input(delta: float) -> void:
-	# Get thrust direction from arrow keys
-	var thrust_direction = Vector2.ZERO
-	
-	if Input.is_action_pressed("ui_right"):
-		thrust_direction.x += 1
+	# Handle thrust angle rotation with left/right arrows
 	if Input.is_action_pressed("ui_left"):
-		thrust_direction.x -= 1
-	if Input.is_action_pressed("ui_down"):
-		thrust_direction.y += 1
-	if Input.is_action_pressed("ui_up"):
-		thrust_direction.y -= 1
+		thrust_angle += thrust_angle_rotation_speed * delta
+	if Input.is_action_pressed("ui_right"):
+		thrust_angle -= thrust_angle_rotation_speed * delta
 	
-	# Normalize to avoid faster diagonal movement
-	if thrust_direction.length() > 0:
-		thrust_direction = thrust_direction.normalized()
-		# Debug: Print thrust direction and resulting velocity change
-		var velocity_change = (thrust_direction * thrust_force) * delta
-		print("Thrust: %s, Velocity change: %s, Current velocity: %s" % [thrust_direction, velocity_change, velocity])
+	# Normalize angle to 0-360 range
+	while thrust_angle < 0:
+		thrust_angle += 360
+	while thrust_angle >= 360:
+		thrust_angle -= 360
 	
-	# Determine the effective thrust force
-	var effective_thrust = thrust_force
-	if use_escape_velocity_thrust:
-		effective_thrust = calculate_escape_velocity_thrust()
-	
-	# Apply thrust directly to velocity
-	# F = ma, so a = F/m, and v += a*dt
-	velocity += (thrust_direction * effective_thrust) * delta
+	# Apply thrust only when Space is pressed
+	if Input.is_action_pressed("ui_select"):
+		# Convert angle to radians
+		var thrust_angle_rad = deg_to_rad(thrust_angle)
+		
+		# Calculate thrust direction
+		var thrust_direction = Vector2(
+			cos(thrust_angle_rad),
+			sin(thrust_angle_rad)
+		)
+		
+		# Determine the effective thrust force
+		var effective_thrust = thrust_force
+		if use_escape_velocity_thrust:
+			effective_thrust = calculate_escape_velocity_thrust()
+		
+		# Apply thrust
+		velocity += (thrust_direction * effective_thrust) * delta
 
 
 func handle_gravity_input() -> void:
@@ -112,23 +192,28 @@ func calculate_sphere_of_influence() -> float:
 
 func calculate_escape_velocity_thrust() -> float:
 	# Calculate the required thrust to achieve escape velocity
-	# Escape velocity: v_escape = sqrt(2 * G * M / r)
-	# At current distance, calculate the required acceleration
+	# When multiple bodies, use the closest one
 	
-	if central_body == null:
+	if central_bodies.is_empty():
 		return thrust_force
 	
-	var direction_to_center = central_body.global_position - global_position
-	var distance = direction_to_center.length()
+	# Find closest body
+	var closest_body = null
+	var closest_distance = INF
 	
-	if distance < 1.0:
+	for body in central_bodies:
+		var dist = (body.global_position - global_position).length()
+		if dist < closest_distance:
+			closest_distance = dist
+			closest_body = body
+	
+	if closest_body == null or closest_distance < 1.0:
 		return thrust_force
 	
-	# Calculate escape velocity at current distance
-	var escape_velocity = sqrt((2.0 * gravitational_constant * central_body.mass) / distance)
+	# Calculate escape velocity at current distance to closest body
+	var escape_velocity = sqrt((2.0 * gravitational_constant * closest_body.mass) / closest_distance)
 	
 	# Calculate the thrust needed to reach escape velocity from current velocity
-	# We want thrust that allows gradual acceleration toward escape velocity
 	# Scaled so it takes about 5 seconds to reach escape velocity from rest
 	var required_acceleration = escape_velocity / 5.0
 	
@@ -137,43 +222,64 @@ func calculate_escape_velocity_thrust() -> float:
 
 
 func calculate_current_escape_velocity() -> float:
-	# Get the escape velocity at current position
-	if central_body == null:
+	# Get the escape velocity at current position (closest body)
+	if central_bodies.is_empty():
 		return 0.0
 	
-	var direction_to_center = central_body.global_position - global_position
-	var distance = direction_to_center.length()
+	# Find closest body
+	var closest_body = null
+	var closest_distance = INF
 	
-	if distance < 1.0:
+	for body in central_bodies:
+		var dist = (body.global_position - global_position).length()
+		if dist < closest_distance:
+			closest_distance = dist
+			closest_body = body
+	
+	if closest_body == null or closest_distance < 1.0:
 		return 0.0
 	
-	return sqrt((2.0 * gravitational_constant * central_body.mass) / distance)
+	return sqrt((2.0 * gravitational_constant * closest_body.mass) / closest_distance)
 
 
-func apply_gravity_from_central_body(delta: float) -> void:
-	# Get direction and distance to central body
-	var direction_to_center = central_body.global_position - global_position
-	var distance = direction_to_center.length()
+func apply_gravity_from_all_bodies(delta: float) -> void:
+	# Apply gravity from all central bodies
+	if not gravity_debug_printed:
+		print("DEBUG: apply_gravity_from_all_bodies called. Bodies count: %d" % central_bodies.size())
 	
-	# Calculate current sphere of influence
-	var soi = calculate_sphere_of_influence()
+	if central_bodies.is_empty():
+		if not gravity_debug_printed:
+			print("DEBUG: No central bodies found in gravity function!")
+			gravity_debug_printed = true
+		return
 	
-	# Only apply gravity if within sphere of influence
-	if distance > 1.0 and distance <= soi:  # Avoid division by zero and check SOI
-		# Calculate gravitational acceleration: a = G * M / r^2
-		var gravitational_acceleration = (gravitational_constant * central_body.mass) / (distance * distance)
+	if not gravity_debug_printed:
+		print("DEBUG: Found %d central bodies, applying gravity" % central_bodies.size())
+		for body in central_bodies:
+			print("  - %s: mass=%.1f, pos=%v" % [body.name, body.mass, body.global_position])
+		gravity_debug_printed = true
+	
+	for body in central_bodies:
+		if body == null:
+			continue
+			
+		var direction_to_center = body.global_position - global_position
+		var distance = direction_to_center.length()
 		
-		# Apply acceleration toward central body
-		var gravity_acceleration = direction_to_center.normalized() * gravitational_acceleration
-		velocity += gravity_acceleration * delta
+		# Calculate current sphere of influence
+		var soi = calculate_sphere_of_influence()
+		
+		# Only apply gravity if within sphere of influence
+		if distance > 1.0 and distance <= soi:
+			# Calculate gravitational acceleration: a = G * M / r^2
+			var gravitational_acceleration = (gravitational_constant * body.mass) / (distance * distance)
+			
+			# Apply acceleration toward this body
+			var gravity_acceleration = direction_to_center.normalized() * gravitational_acceleration
+			velocity += gravity_acceleration * delta
 
 
 func handle_screen_bounce() -> void:
-	# Get viewport size
-	var viewport_rect = get_viewport_rect()
-	var viewport_width = viewport_rect.size.x
-	var viewport_height = viewport_rect.size.y
-	
 	# Check left and right boundaries
 	if global_position.x - body_radius < 0:
 		global_position.x = body_radius
@@ -211,7 +317,90 @@ func update_orbit_trail() -> void:
 			orbit_trail.remove_at(0)
 
 
+func calculate_predicted_trajectory() -> void:
+	# Predict the trajectory based on current velocity and gravity
+	predicted_trajectory.clear()
+	
+	var sim_position = global_position
+	var sim_velocity = velocity
+	var time_step = trajectory_prediction_time / trajectory_points
+	
+	for i in range(trajectory_points):
+		# Add current position to trajectory
+		predicted_trajectory.append(sim_position)
+		
+		# Apply gravity from all bodies
+		for body in central_bodies:
+			var direction_to_center = body.global_position - sim_position
+			var distance = direction_to_center.length()
+			var soi = calculate_sphere_of_influence()
+			
+			# Only apply gravity if within sphere of influence
+			if distance > 1.0 and distance <= soi:
+				var gravitational_acceleration = (gravitational_constant * body.mass) / (distance * distance)
+				var gravity_acceleration = direction_to_center.normalized() * gravitational_acceleration
+				sim_velocity += gravity_acceleration * time_step
+		
+		# Apply thrust if space is pressed
+		if Input.is_action_pressed("ui_select"):
+			var thrust_angle_rad = deg_to_rad(thrust_angle)
+			var thrust_direction = Vector2(
+				cos(thrust_angle_rad),
+				sin(thrust_angle_rad)
+			)
+			var effective_thrust = thrust_force
+			if use_escape_velocity_thrust:
+				# Find closest body for escape velocity calculation
+				var closest_body = null
+				var closest_distance = INF
+				for body in central_bodies:
+					var dist = (body.global_position - sim_position).length()
+					if dist < closest_distance:
+						closest_distance = dist
+						closest_body = body
+				
+				if closest_body != null and closest_distance > 1.0:
+					var escape_vel = sqrt((2.0 * gravitational_constant * closest_body.mass) / closest_distance)
+					effective_thrust = (escape_vel / 5.0) * mass
+			
+			sim_velocity += thrust_direction * effective_thrust * time_step
+		
+		# Update position
+		sim_position += sim_velocity * time_step
+
+
 func _draw() -> void:
+	# Draw predicted trajectory as dotted line
+	if show_trajectory and predicted_trajectory.size() > 1:
+		for i in range(predicted_trajectory.size() - 1):
+			# Draw segments as dashed line (every other segment to create dotted effect)
+			if i % 2 == 0:
+				draw_line(predicted_trajectory[i], predicted_trajectory[i + 1], Color.YELLOW, 1.0)
+	
+	# Draw thrust direction indicator arrow
+	if show_thrust_indicator:
+		var thrust_angle_rad = deg_to_rad(thrust_angle)
+		var arrow_length = 60.0
+		var arrow_end = Vector2(
+			cos(thrust_angle_rad) * arrow_length,
+			sin(thrust_angle_rad) * arrow_length
+		)
+		
+		# Draw main arrow line
+		var arrow_color = Color.GREEN if Input.is_action_pressed("ui_select") else Color.GRAY
+		draw_line(Vector2.ZERO, arrow_end, arrow_color, 3.0)
+		
+		# Draw arrowhead
+		var arrow_head_size = 10.0
+		var arrow_head_angle1 = thrust_angle_rad + deg_to_rad(150)
+		var arrow_head_angle2 = thrust_angle_rad - deg_to_rad(150)
+		
+		var head1 = arrow_end + Vector2(cos(arrow_head_angle1) * arrow_head_size, sin(arrow_head_angle1) * arrow_head_size)
+		var head2 = arrow_end + Vector2(cos(arrow_head_angle2) * arrow_head_size, sin(arrow_head_angle2) * arrow_head_size)
+		
+		draw_line(arrow_end, head1, arrow_color, 3.0)
+		draw_line(arrow_end, head2, arrow_color, 3.0)
+	
 	if show_velocity_vector and velocity.length() > 0:
 		# Draw velocity vector
 		draw_line(Vector2.ZERO, velocity.normalized() * 50, Color.RED, 2.0)
@@ -238,7 +427,7 @@ func _draw() -> void:
 	var escape_vel = calculate_current_escape_velocity()
 	var current_speed = velocity.length()
 	var escape_percentage = (current_speed / escape_vel * 100.0) if escape_vel > 0 else 0.0
-	var gravity_text = "Gravity: %.0f\nSOI: %.0f\nEscape V: %.1f (%.0f%%)\n(W/S to adjust)" % [gravitational_constant, soi, escape_vel, escape_percentage]
+	var gravity_text = "Gravity: %.0f | SOI: %.0f\nEscape V: %.1f (%.0f%%)\nThrust Angle: %.0f°\n(LEFT/RIGHT to rotate, SPACE to thrust)" % [gravitational_constant, soi, escape_vel, escape_percentage, thrust_angle]
 	var gravity_label: Label
 	if not has_node("GravityLabel"):
 		gravity_label = Label.new()
@@ -248,6 +437,6 @@ func _draw() -> void:
 		gravity_label = get_node("GravityLabel")
 	
 	gravity_label.text = gravity_text
-	gravity_label.position = Vector2(10, -60)
+	gravity_label.position = Vector2(10, -80)
 	gravity_label.add_theme_font_size_override("font_size", 12)
 	gravity_label.add_theme_color_override("font_color", Color.BLACK)

@@ -21,15 +21,17 @@ func _draw() -> void:
 	if orbiting_body == null:
 		return
 	
-	# Draw sphere of influence (circle around central body)
-	if orbiting_body.show_sphere_of_influence:
-		var soi = orbiting_body.calculate_sphere_of_influence()
-		var soi_color = Color.GREEN
-		soi_color.a = 0.2  # Semi-transparent
-		draw_circle(orbiting_body.central_body.global_position, soi, soi_color)
-		
-		# Draw the boundary with a line
-		draw_arc(orbiting_body.central_body.global_position, soi, 0, TAU, 64, Color.GREEN, 1.0)
+	# Draw sphere of influence for all central bodies
+	if orbiting_body.show_sphere_of_influence and not orbiting_body.central_bodies.is_empty():
+		for body in orbiting_body.central_bodies:
+			if body != null:
+				var soi = orbiting_body.calculate_sphere_of_influence()
+				var soi_color = Color.GREEN
+				soi_color.a = 0.2  # Semi-transparent
+				draw_circle(body.global_position, soi, soi_color)
+				
+				# Draw the boundary with a line
+				draw_arc(body.global_position, soi, 0, TAU, 64, Color.GREEN, 1.0)
 	
 	# Draw orbit trail
 	if orbiting_body.show_orbit_trail and orbiting_body.orbit_trail.size() > 1:
