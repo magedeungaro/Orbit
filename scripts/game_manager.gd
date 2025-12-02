@@ -82,7 +82,7 @@ func _create_start_screen() -> void:
 	
 	# Instructions
 	var instructions = Label.new()
-	instructions.text = "Controls:\nLEFT/RIGHT - Rotate ship\nSPACE - Thrust\n\nUse gravity to conserve fuel!"
+	instructions.text = "Controls:\nLEFT/RIGHT - Rotate ship\nSPACE - Thrust\nR - Restart | ESC - Menu\n\nUse gravity to conserve fuel!\nReach Earth 3 and establish a stable orbit!"
 	instructions.add_theme_font_size_override("font_size", 16)
 	instructions.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	instructions.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -230,6 +230,19 @@ func _process(_delta: float) -> void:
 		# Check for win condition (stable orbit around Earth3)
 		elif orbiting_body.is_in_stable_orbit():
 			show_game_won()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	# Press R to restart at any time during gameplay
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_R and current_state == GameState.PLAYING:
+			restart_game()
+		# Press Escape to go back to start screen
+		elif event.keycode == KEY_ESCAPE:
+			if current_state == GameState.PLAYING:
+				show_start_screen()
+			elif current_state == GameState.GAME_OVER or current_state == GameState.GAME_WON:
+				show_start_screen()
 
 
 func show_start_screen() -> void:
