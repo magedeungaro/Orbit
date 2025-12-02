@@ -17,14 +17,14 @@ extends CharacterBody2D
 @export var boundary_right: float = 25000.0  # Right boundary of play area
 @export var boundary_bottom: float = 25000.0  # Bottom boundary of play area
 @export var show_orbit_trail: bool = true  # Draw the orbit trail
-@export var orbit_trail_color: Color = Color.BLUE  # Color of the orbit trail
+@export var orbit_trail_color: Color = Color.MAGENTA # Color of the orbit trail
 @export var trail_max_points: int = 500  # Maximum points to store for trail
 @export var use_escape_velocity_thrust: bool = false  # Scale thrust to achieve escape velocity (disabled for controlled movement)
 @export var thrust_angle_rotation_speed: float = 180.0  # Degrees per second for rotating thrust direction
 @export var show_trajectory: bool = true  # Draw predicted trajectory
-@export var trajectory_prediction_time: float = 5.0  # How far into the future to predict (seconds)
-@export var trajectory_points: int = 60  # Number of points to calculate for trajectory
-@export var trajectory_color: Color = Color(1.0, 1.0, 0.0, 0.7)  # Yellow with some transparency
+@export var trajectory_prediction_time: float = 15.0  # How far into the future to predict (seconds)
+@export var trajectory_points: int = 100  # Number of points to calculate for trajectory
+@export var trajectory_color: Color = Color.YELLOW  # Bright yellow with some transparency
 
 # Fuel system
 @export var max_fuel: float = 1000.0  # Maximum fuel capacity (in delta-v units)

@@ -1,16 +1,16 @@
 [gd_scene load_steps=13 format=3 uid="uid://cgoy04rdwt2ce"]
 
-[ext_resource type="Script" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
-[ext_resource type="Script" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
+[ext_resource type="Script" uid="uid://bwh1penr54ifo" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
+[ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
 [ext_resource type="PackedScene" uid="uid://dqsxdkmwt88n5" path="res://Planeja.tscn" id="3_u5sff"]
-[ext_resource type="Script" path="res://scripts/camera_follow.gd" id="4_camera"]
+[ext_resource type="Script" uid="uid://derr4cln3we0j" path="res://scripts/camera_follow.gd" id="4_camera"]
 [ext_resource type="Texture2D" uid="uid://fyxnlyles8s2" path="res://Assets/Sprites/Planet 2.PNG" id="5_683ew"]
 [ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="5_planet3"]
 [ext_resource type="Texture2D" uid="uid://bvev41whwp4ii" path="res://Assets/Sprites/Planet 1.PNG" id="6_planet1"]
 [ext_resource type="Texture2D" uid="uid://bxvf2ptnyrcfq" path="res://Assets/Sprites/Ship.PNG" id="7_wyn4c"]
-[ext_resource type="Script" path="res://scripts/hud.gd" id="8_hud"]
+[ext_resource type="Script" uid="uid://dqxqcwujmj732" path="res://scripts/hud.gd" id="8_hud"]
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="9_bg"]
-[ext_resource type="Script" path="res://scripts/game_manager.gd" id="10_game_mgr"]
+[ext_resource type="Script" uid="uid://cm32hpkcttddn" path="res://scripts/game_manager.gd" id="10_game_mgr"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kc8bv"]
 size = Vector2(20, 61)
@@ -52,11 +52,10 @@ z_index = 1
 texture = ExtResource("5_683ew")
 
 [node name="OrbitingBody" type="CharacterBody2D" parent="."]
-position = Vector2(300, 300)
+position = Vector2(301, 300)
 script = ExtResource("2_eevcs")
 thrust_force = 30.0
 mass = 1000.0
-trajectory_color = Color(1, 0.309804, 0, 0.701961)
 max_fuel = 750.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="OrbitingBody"]

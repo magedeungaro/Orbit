@@ -26,12 +26,13 @@ func _draw() -> void:
 		for body in orbiting_body.central_bodies:
 			if body != null:
 				var soi = orbiting_body.calculate_sphere_of_influence()
-				var soi_color = Color.GREEN
-				soi_color.a = 0.2  # Semi-transparent
+				# Creamy, white-ish transparent color
+				var soi_color = Color(1.0, 0.97, 0.9, 0.1)  # Creamy white, very transparent
 				draw_circle(body.global_position, soi, soi_color)
 				
-				# Draw the boundary with a line
-				draw_arc(body.global_position, soi, 0, TAU, 64, Color.GREEN, 1.0)
+				# Draw the boundary with a soft creamy line
+				var border_color = Color(1.0, 0.97, 0.9, 0.3)
+				draw_arc(body.global_position, soi, 0, TAU, 64, border_color, 1.0)
 	
 	# Draw orbit trail
 	if orbiting_body.show_orbit_trail and orbiting_body.orbit_trail.size() > 1:
