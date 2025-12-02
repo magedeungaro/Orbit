@@ -6,6 +6,9 @@ var speed_label: Label
 var info_label: Label
 var fuel_label: Label
 var fuel_bar: ProgressBar
+var goal_indicator: Control
+var target_body: Node2D = null
+var camera: Camera2D = null
 
 
 func _ready() -> void:
@@ -15,6 +18,12 @@ func _ready() -> void:
 	if orbiting_body == null:
 		print("HUD Error: Could not find OrbitingBody node!")
 		return
+	
+	# Get target body reference
+	target_body = orbiting_body.target_body
+	
+	# Get camera reference
+	camera = get_tree().root.find_child("Camera2D", true, false)
 	
 	print("HUD initialized - tracking orbiting body")
 	
@@ -83,6 +92,14 @@ func _ready() -> void:
 	info_label.add_theme_font_size_override("font_size", 14)
 	info_label.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(info_label)
+	
+	# Create goal indicator (custom drawing control)
+	goal_indicator = GoalIndicator.new()
+	goal_indicator.name = "GoalIndicator"
+	goal_indicator.set_anchors_preset(Control.PRESET_FULL_RECT)
+	goal_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	goal_indicator.hud = self
+	add_child(goal_indicator)
 
 
 func _process(_delta: float) -> void:
@@ -117,3 +134,119 @@ func _process(_delta: float) -> void:
 	info_label.text = "Escape V: %.1f (%.0f%%)\nThrust Angle: %.0f°\n\nControls:\nLEFT/RIGHT - Rotate\nSPACE - Thrust" % [
 		escape_vel, escape_percentage, thrust_angle
 	]
+	
+	# Update target body reference if needed
+	if target_body == null and orbiting_body.target_body != null:
+		target_body = orbiting_body.target_body
+	
+	# Redraw goal indicator
+	if goal_indicator:
+		goal_indicator.queue_redraw()
+
+
+# Custom control class for drawing the goal indicator arrow
+class GoalIndicator extends Control:
+	var hud: CanvasLayer
+	
+	func _draw() -> void:
+		if hud == null or hud.orbiting_body == null or hud.target_body == null:
+			return
+		
+		var viewport_size = get_viewport_rect().size
+		var screen_center = viewport_size / 2
+		
+		# Get direction from ship to target in world space
+		var ship_pos = hud.orbiting_body.global_position
+		var target_pos = hud.target_body.global_position
+		var to_target = target_pos - ship_pos
+		var distance = to_target.length()
+		var direction = to_target.normalized()
+		
+		# Check if target is on screen
+		var camera = hud.camera
+		if camera == null:
+			return
+		
+		var camera_pos = camera.global_position
+		var zoom = camera.zoom
+		var half_size = viewport_size / (2.0 * zoom)
+		
+		var target_relative = target_pos - camera_pos
+		var is_on_screen = abs(target_relative.x) < half_size.x and abs(target_relative.y) < half_size.y
+		
+		# Arrow settings
+		var arrow_color = Color(0.3, 1.0, 0.5, 0.9)  # Bright green
+		var margin = 60.0  # Distance from screen edge
+		
+		if is_on_screen:
+			# Target is on screen - draw a small indicator near the target
+			var screen_pos = screen_center + (target_relative * zoom)
+			# Draw a circle around the target
+			draw_arc(screen_pos, 40, 0, TAU, 32, arrow_color, 3.0)
+			# Draw distance
+			var dist_text = "%.0f" % distance
+			draw_string(ThemeDB.fallback_font, screen_pos + Vector2(-20, -50), dist_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 16, arrow_color)
+			draw_string(ThemeDB.fallback_font, screen_pos + Vector2(-30, -35), "GOAL", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, arrow_color)
+		else:
+			# Target is off screen - draw arrow at edge of screen pointing to it
+			# Calculate where the arrow should be on the screen edge
+			var arrow_pos = screen_center
+			
+			# Find intersection with screen edge
+			var screen_bounds = Rect2(
+				Vector2(margin, margin),
+				viewport_size - Vector2(margin * 2, margin * 2)
+			)
+			
+			# Calculate arrow position on screen edge
+			var t_min = INF
+			
+			# Check all four edges
+			if direction.x > 0:  # Right edge
+				var t = (screen_bounds.end.x - screen_center.x) / direction.x
+				if t > 0 and t < t_min:
+					var y = screen_center.y + direction.y * t
+					if y >= screen_bounds.position.y and y <= screen_bounds.end.y:
+						t_min = t
+						arrow_pos = Vector2(screen_bounds.end.x, y)
+			if direction.x < 0:  # Left edge
+				var t = (screen_bounds.position.x - screen_center.x) / direction.x
+				if t > 0 and t < t_min:
+					var y = screen_center.y + direction.y * t
+					if y >= screen_bounds.position.y and y <= screen_bounds.end.y:
+						t_min = t
+						arrow_pos = Vector2(screen_bounds.position.x, y)
+			if direction.y > 0:  # Bottom edge
+				var t = (screen_bounds.end.y - screen_center.y) / direction.y
+				if t > 0 and t < t_min:
+					var x = screen_center.x + direction.x * t
+					if x >= screen_bounds.position.x and x <= screen_bounds.end.x:
+						t_min = t
+						arrow_pos = Vector2(x, screen_bounds.end.y)
+			if direction.y < 0:  # Top edge
+				var t = (screen_bounds.position.y - screen_center.y) / direction.y
+				if t > 0 and t < t_min:
+					var x = screen_center.x + direction.x * t
+					if x >= screen_bounds.position.x and x <= screen_bounds.end.x:
+						t_min = t
+						arrow_pos = Vector2(x, screen_bounds.position.y)
+			
+			# Draw arrow
+			var arrow_size = 25.0
+			var arrow_head_size = 15.0
+			
+			# Arrow body (line pointing inward from edge)
+			var arrow_base = arrow_pos - direction * arrow_size
+			draw_line(arrow_base, arrow_pos, arrow_color, 4.0)
+			
+			# Arrow head
+			var perp = Vector2(-direction.y, direction.x)
+			var head_left = arrow_pos - direction * arrow_head_size + perp * (arrow_head_size * 0.6)
+			var head_right = arrow_pos - direction * arrow_head_size - perp * (arrow_head_size * 0.6)
+			var arrow_head = PackedVector2Array([arrow_pos, head_left, head_right])
+			draw_colored_polygon(arrow_head, arrow_color)
+			
+			# Draw distance text
+			var text_offset = -direction * 45
+			var dist_text = "%.0f" % distance
+			draw_string(ThemeDB.fallback_font, arrow_base + text_offset + Vector2(-15, 5), dist_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 14, arrow_color)
