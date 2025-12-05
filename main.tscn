@@ -15,7 +15,7 @@
 [ext_resource type="Texture2D" uid="uid://d37d55a3m42u3" path="res://Assets/Sprites/engine.png" id="10_ycdy4"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kc8bv"]
-size = Vector2(20, 61)
+size = Vector2(78, 87)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_dg77c"]
 atlas = ExtResource("9_dg77c")
@@ -148,7 +148,7 @@ mass = 1000.0
 max_fuel = 750.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="OrbitingBody"]
-position = Vector2(0, -1)
+position = Vector2(0, -1.5)
 shape = SubResource("RectangleShape2D_kc8bv")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="OrbitingBody"]
@@ -164,7 +164,7 @@ position = Vector2(9.059906e-06, 79.00001)
 scale = Vector2(2.2500005, 2.2500005)
 sprite_frames = SubResource("SpriteFrames_getpj")
 autoplay = "default"
-frame_progress = 0.62861544
+frame_progress = 0.33379754
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("8_hud")

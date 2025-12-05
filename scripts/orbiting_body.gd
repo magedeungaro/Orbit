@@ -11,7 +11,7 @@ extends CharacterBody2D
 @export var show_sphere_of_influence: bool = true  # Draw the sphere of influence
 @export var mass: float = 50.0  # Mass of this body (increased from 10.0)
 @export var bounce_coefficient: float = 0.8  # How much velocity is retained after bounce (0-1)
-@export var body_radius: float = 15.0  # Radius of the body for collision detection
+@export var body_radius: float = 39.0  # Radius of the body for collision detection (half of collision shape width)
 @export var boundary_left: float = -5000.0  # Left boundary of play area
 @export var boundary_top: float = -5000.0  # Top boundary of play area
 @export var boundary_right: float = 25000.0  # Right boundary of play area
@@ -195,8 +195,8 @@ func handle_thrust_input(delta: float) -> void:
 	while thrust_angle >= 360:
 		thrust_angle -= 360
 	
-	# Apply thrust only when Space is pressed AND we have fuel
-	var is_thrusting = Input.is_action_pressed("ui_select") and current_fuel > 0
+	# Apply thrust only when Space is pressed AND we have fuel AND not exploding
+	var is_thrusting = Input.is_action_pressed("ui_select") and current_fuel > 0 and not is_exploding
 	
 	# Show/hide engine sprite based on thrust state
 	if has_node("EngineAnimatedSprite"):
@@ -297,9 +297,9 @@ func check_planet_collision() -> void:
 	# Check both ship center and ship head (front of ship based on rotation)
 	
 	# The ship sprite points UP (-Y in local space) by default
-	# The collision shape is 20x61 pixels, centered at (1, -14.5) in local coords
-	# Ship head is approximately 45 pixels from center in the "up" direction (local -Y)
-	var ship_head_offset = 45.0  # Distance from center to head
+	# The collision shape is 78x87 pixels
+	# Ship head is approximately half the height from center in the "up" direction (local -Y)
+	var ship_head_offset = 43.5  # Distance from center to head (half of collision shape height)
 	
 	# The ship's local "up" direction (-Y) in world space
 	# rotation is already set, so we use Transform2D to get the correct direction
