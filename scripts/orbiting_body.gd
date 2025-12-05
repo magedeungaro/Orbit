@@ -288,11 +288,22 @@ func reset_orbit_tracking() -> void:
 
 func check_planet_collision() -> void:
 	# Check if ship has collided with any planet
+	# Check both ship center and ship head (front of ship based on rotation)
+	
+	# The ship sprite points UP (-Y in local space) by default
+	# The collision shape is 20x61 pixels, centered at (1, -14.5) in local coords
+	# Ship head is approximately 45 pixels from center in the "up" direction (local -Y)
+	var ship_head_offset = 45.0  # Distance from center to head
+	
+	# The ship's local "up" direction (-Y) in world space
+	# rotation is already set, so we use Transform2D to get the correct direction
+	var local_up = Vector2(0, -1)  # Local "up" is -Y
+	var world_up = local_up.rotated(rotation)
+	var head_position = global_position + world_up * ship_head_offset
+	
 	for body in central_bodies:
 		if body == null:
 			continue
-		
-		var distance = (body.global_position - global_position).length()
 		
 		# Get planet's collision radius (use sprite size or default)
 		var planet_radius = planet_collision_radius
@@ -301,8 +312,15 @@ func check_planet_collision() -> void:
 			if sprite.texture:
 				planet_radius = max(sprite.texture.get_width(), sprite.texture.get_height()) * sprite.scale.x / 2.0
 		
-		# Check collision (ship radius + planet radius)
-		if distance < (body_radius + planet_radius):
+		# Check collision with ship center
+		var distance_center = (body.global_position - global_position).length()
+		if distance_center < (body_radius + planet_radius):
+			trigger_explosion(body)
+			return
+		
+		# Check collision with ship head
+		var distance_head = (body.global_position - head_position).length()
+		if distance_head < planet_radius:
 			trigger_explosion(body)
 			return
 
