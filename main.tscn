@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://cgoy04rdwt2ce"]
+[gd_scene load_steps=26 format=3 uid="uid://cgoy04rdwt2ce"]
 
 [ext_resource type="Script" uid="uid://bwh1penr54ifo" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
 [ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
@@ -12,6 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="9_bg"]
 [ext_resource type="Texture2D" uid="uid://djr7bg0t0hmgn" path="res://Assets/Sprites/explosion.png" id="9_dg77c"]
 [ext_resource type="Script" uid="uid://cm32hpkcttddn" path="res://scripts/game_manager.gd" id="10_game_mgr"]
+[ext_resource type="Texture2D" uid="uid://d37d55a3m42u3" path="res://Assets/Sprites/engine.png" id="10_ycdy4"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kc8bv"]
 size = Vector2(20, 61)
@@ -81,6 +82,28 @@ animations = [{
 "speed": 7.0
 }]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_cegan"]
+atlas = ExtResource("10_ycdy4")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_82xsv"]
+atlas = ExtResource("10_ycdy4")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_getpj"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cegan")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_82xsv")
+}],
+"loop": true,
+"name": &"default",
+"speed": 8.0
+}]
+
 [node name="Main" type="Node2D"]
 
 [node name="Earth2" parent="." instance=ExtResource("3_u5sff")]
@@ -134,6 +157,14 @@ position = Vector2(1533.9999, 1843)
 scale = Vector2(2.818299, 2.811)
 sprite_frames = SubResource("SpriteFrames_074og")
 offset = Vector2(-544, -656)
+
+[node name="EngineAnimatedSprite" type="AnimatedSprite2D" parent="OrbitingBody"]
+texture_filter = 1
+position = Vector2(9.059906e-06, 79.00001)
+scale = Vector2(2.2500005, 2.2500005)
+sprite_frames = SubResource("SpriteFrames_getpj")
+autoplay = "default"
+frame_progress = 0.62861544
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("8_hud")
