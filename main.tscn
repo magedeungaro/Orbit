@@ -70,11 +70,14 @@ mass = 1000.0
 max_fuel = 750.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="OrbitingBody"]
-position = Vector2(1, -14.5)
+position = Vector2(0, -1)
 shape = SubResource("RectangleShape2D_kc8bv")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="OrbitingBody"]
+position = Vector2(73.999985, 69.99999)
+scale = Vector2(0.13528651, 0.12974446)
 sprite_frames = SubResource("SpriteFrames_efxa6")
+offset = Vector2(-544, -656)
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("8_hud")
