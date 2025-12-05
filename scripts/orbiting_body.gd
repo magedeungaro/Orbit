@@ -331,9 +331,13 @@ func trigger_explosion(collided_planet: Node2D) -> void:
 	explosion_time = 0.0
 	velocity = Vector2.ZERO
 	
-	# Hide the ship sprite if it exists
-	if has_node("Sprite2D"):
-		get_node("Sprite2D").visible = false
+	# Play explosion animation on AnimatedSprite2D
+	if has_node("AnimatedSprite2D"):
+		var animated_sprite = get_node("AnimatedSprite2D")
+		animated_sprite.position = Vector2.ZERO  # Center the explosion on the ship
+		animated_sprite.offset = Vector2.ZERO  # Reset offset
+		animated_sprite.play("exploding")
+		animated_sprite.visible = true
 	
 	print("💥 Ship exploded on collision with %s!" % collided_planet.name)
 	emit_signal("ship_exploded")
@@ -351,9 +355,12 @@ func reset_explosion() -> void:
 	is_exploding = false
 	explosion_time = 0.0
 	
-	# Show the ship sprite again
-	if has_node("Sprite2D"):
-		get_node("Sprite2D").visible = true
+	# Reset AnimatedSprite2D to default ship animation
+	if has_node("AnimatedSprite2D"):
+		var animated_sprite = get_node("AnimatedSprite2D")
+		animated_sprite.stop()
+		animated_sprite.play("default")
+		animated_sprite.visible = true
 
 
 func calculate_sphere_of_influence() -> float:
