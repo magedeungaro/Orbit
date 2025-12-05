@@ -501,6 +501,29 @@ func calculate_trajectory() -> void:
 		# Update position
 		sim_pos += sim_vel * time_step
 		
+		# Check for collision with planets - stop trajectory if it would hit
+		var collision_detected = false
+		for body in central_bodies:
+			if body == null:
+				continue
+			
+			# Get planet's collision radius
+			var planet_radius = planet_collision_radius
+			if body.has_node("Sprite2D"):
+				var sprite = body.get_node("Sprite2D")
+				if sprite.texture:
+					planet_radius = max(sprite.texture.get_width(), sprite.texture.get_height()) * sprite.scale.x / 2.0
+			
+			var distance_to_planet = (body.global_position - sim_pos).length()
+			if distance_to_planet < (body_radius + planet_radius):
+				# Trajectory would hit this planet - add final point and stop
+				predicted_trajectory.append(sim_pos)
+				collision_detected = true
+				break
+		
+		if collision_detected:
+			break
+		
 		# Handle boundary bounces in simulation
 		if sim_pos.x < boundary_left + body_radius:
 			sim_pos.x = boundary_left + body_radius
