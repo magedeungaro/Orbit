@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://cgoy04rdwt2ce"]
+[gd_scene load_steps=22 format=3 uid="uid://cgoy04rdwt2ce"]
 
 [ext_resource type="Script" uid="uid://bwh1penr54ifo" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
 [ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
@@ -10,10 +10,39 @@
 [ext_resource type="Texture2D" uid="uid://bxvf2ptnyrcfq" path="res://Assets/Sprites/Ship.PNG" id="7_wyn4c"]
 [ext_resource type="Script" uid="uid://dqxqcwujmj732" path="res://scripts/hud.gd" id="8_hud"]
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="9_bg"]
+[ext_resource type="Texture2D" uid="uid://djr7bg0t0hmgn" path="res://Assets/Sprites/explosion.png" id="9_dg77c"]
 [ext_resource type="Script" uid="uid://cm32hpkcttddn" path="res://scripts/game_manager.gd" id="10_game_mgr"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kc8bv"]
 size = Vector2(20, 61)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ycdy4"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w48qg"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vivmo"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2cqfq"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yaehf"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_074og"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(160, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cegan"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(192, 0, 32, 32)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_efxa6"]
 animations = [{
@@ -23,6 +52,32 @@ animations = [{
 }],
 "loop": true,
 "name": &"default",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ycdy4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w48qg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vivmo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2cqfq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yaehf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_074og")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cegan")
+}],
+"loop": true,
+"name": &"exploding",
 "speed": 5.0
 }]
 
@@ -74,9 +129,12 @@ position = Vector2(0, -1)
 shape = SubResource("RectangleShape2D_kc8bv")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="OrbitingBody"]
-position = Vector2(73.999985, 69.99999)
-scale = Vector2(0.13528651, 0.12974446)
+texture_filter = 1
+position = Vector2(1595.0001, 1844)
+scale = Vector2(2.9314983, 2.8114085)
 sprite_frames = SubResource("SpriteFrames_efxa6")
+animation = &"exploding"
+frame_progress = 0.10969748
 offset = Vector2(-544, -656)
 
 [node name="HUD" type="CanvasLayer" parent="."]
