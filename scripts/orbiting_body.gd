@@ -166,10 +166,10 @@ func _physics_process(delta: float) -> void:
 
 
 func handle_thrust_input(delta: float) -> void:
-	# Handle thrust angle rotation with left/right arrows
-	if Input.is_action_pressed("ui_left"):
+	# Handle thrust angle rotation with left/right arrows or touch controls
+	if Input.is_action_pressed("ui_left") or Input.is_action_pressed("rotate_left"):
 		thrust_angle += thrust_angle_rotation_speed * delta
-	if Input.is_action_pressed("ui_right"):
+	if Input.is_action_pressed("ui_right") or Input.is_action_pressed("rotate_right"):
 		thrust_angle -= thrust_angle_rotation_speed * delta
 	
 	# Normalize angle to 0-360 range

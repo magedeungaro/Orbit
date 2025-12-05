@@ -131,7 +131,7 @@ func _process(_delta: float) -> void:
 	var thrust_angle = orbiting_body.thrust_angle
 	
 	# Update info display
-	info_label.text = "Escape V: %.1f (%.0f%%)\nThrust Angle: %.0f°\n\nControls:\nLEFT/RIGHT - Rotate\nSPACE - Thrust" % [
+	info_label.text = "Escape V: %.1f (%.0f%%)\nThrust Angle: %.0f°\n\nControls:\nLEFT/RIGHT or Touch - Rotate\nSPACE - Thrust" % [
 		escape_vel, escape_percentage, thrust_angle
 	]
 	
