@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://cgoy04rdwt2ce"]
+[gd_scene load_steps=14 format=3 uid="uid://cgoy04rdwt2ce"]
 
 [ext_resource type="Script" uid="uid://bwh1penr54ifo" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
 [ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
@@ -14,6 +14,17 @@
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kc8bv"]
 size = Vector2(20, 61)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_efxa6"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("7_wyn4c")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="Main" type="Node2D"]
 
@@ -62,10 +73,8 @@ max_fuel = 750.0
 position = Vector2(1, -14.5)
 shape = SubResource("RectangleShape2D_kc8bv")
 
-[node name="Sprite2D" type="Sprite2D" parent="OrbitingBody"]
-position = Vector2(1, -9)
-scale = Vector2(0.122298, 0.122298)
-texture = ExtResource("7_wyn4c")
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="OrbitingBody"]
+sprite_frames = SubResource("SpriteFrames_efxa6")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("8_hud")
