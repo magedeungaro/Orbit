@@ -47,6 +47,14 @@ var total_orbit_angle: float = 0.0  # Total angle traveled around target
 @export var stable_orbit_time_required: float = 10.0  # Seconds needed in stable orbit to win
 @export var orbit_stability_threshold: float = 50.0  # Max distance variance for stable orbit
 
+# Explosion state
+var is_exploding: bool = false
+var explosion_time: float = 0.0
+@export var explosion_duration: float = 1.5  # How long the explosion lasts
+@export var planet_collision_radius: float = 30.0  # Distance at which ship collides with planet
+
+signal ship_exploded  # Signal emitted when ship explodes
+
 
 func _ready() -> void:
 	# Get references to all nodes with central_body script attached
@@ -135,6 +143,15 @@ func _print_scene_tree(node: Node, indent: int = 0) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# If exploding, only update explosion animation
+	if is_exploding:
+		update_explosion(delta)
+		queue_redraw()
+		return
+	
+	# Check for collision with planets
+	check_planet_collision()
+	
 	# Handle thrust input
 	handle_thrust_input(delta)
 	
@@ -267,6 +284,58 @@ func reset_orbit_tracking() -> void:
 	orbit_distance_samples.clear()
 	total_orbit_angle = 0.0
 	last_orbit_angle = 0.0
+
+
+func check_planet_collision() -> void:
+	# Check if ship has collided with any planet
+	for body in central_bodies:
+		if body == null:
+			continue
+		
+		var distance = (body.global_position - global_position).length()
+		
+		# Get planet's collision radius (use sprite size or default)
+		var planet_radius = planet_collision_radius
+		if body.has_node("Sprite2D"):
+			var sprite = body.get_node("Sprite2D")
+			if sprite.texture:
+				planet_radius = max(sprite.texture.get_width(), sprite.texture.get_height()) * sprite.scale.x / 2.0
+		
+		# Check collision (ship radius + planet radius)
+		if distance < (body_radius + planet_radius):
+			trigger_explosion(body)
+			return
+
+
+func trigger_explosion(collided_planet: Node2D) -> void:
+	# Start explosion sequence
+	is_exploding = true
+	explosion_time = 0.0
+	velocity = Vector2.ZERO
+	
+	# Hide the ship sprite if it exists
+	if has_node("Sprite2D"):
+		get_node("Sprite2D").visible = false
+	
+	print("💥 Ship exploded on collision with %s!" % collided_planet.name)
+	emit_signal("ship_exploded")
+
+
+func update_explosion(delta: float) -> void:
+	explosion_time += delta
+
+
+func is_ship_exploded() -> bool:
+	return is_exploding and explosion_time >= explosion_duration
+
+
+func reset_explosion() -> void:
+	is_exploding = false
+	explosion_time = 0.0
+	
+	# Show the ship sprite again
+	if has_node("Sprite2D"):
+		get_node("Sprite2D").visible = true
 
 
 func calculate_sphere_of_influence() -> float:
