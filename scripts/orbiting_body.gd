@@ -50,7 +50,7 @@ var total_orbit_angle: float = 0.0  # Total angle traveled around target
 # Explosion state
 var is_exploding: bool = false
 var explosion_time: float = 0.0
-@export var explosion_duration: float = 1.5  # How long the explosion lasts
+@export var explosion_duration: float = 1.0  # How long the explosion lasts
 @export var planet_collision_radius: float = 30.0  # Distance at which ship collides with planet
 
 signal ship_exploded  # Signal emitted when ship explodes
@@ -196,7 +196,13 @@ func handle_thrust_input(delta: float) -> void:
 		thrust_angle -= 360
 	
 	# Apply thrust only when Space is pressed AND we have fuel
-	if Input.is_action_pressed("ui_select") and current_fuel > 0:
+	var is_thrusting = Input.is_action_pressed("ui_select") and current_fuel > 0
+	
+	# Show/hide engine sprite based on thrust state
+	if has_node("EngineAnimatedSprite"):
+		get_node("EngineAnimatedSprite").visible = is_thrusting
+	
+	if is_thrusting:
 		# Convert angle to radians
 		var thrust_angle_rad = deg_to_rad(thrust_angle)
 		
@@ -330,6 +336,10 @@ func trigger_explosion(collided_planet: Node2D) -> void:
 	is_exploding = true
 	explosion_time = 0.0
 	velocity = Vector2.ZERO
+	
+	# Hide engine sprite during explosion
+	if has_node("EngineAnimatedSprite"):
+		get_node("EngineAnimatedSprite").visible = false
 	
 	# Play explosion animation on AnimatedSprite2D
 	if has_node("AnimatedSprite2D"):
