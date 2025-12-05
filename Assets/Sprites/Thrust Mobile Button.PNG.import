@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://6axi75lpwytw"
-path="res://.godot/imported/Background.png-11bc84fe4d7686a716d11ebb080e2204.ctex"
+uid="uid://b8poanb6efsb0"
+path="res://.godot/imported/Thrust Mobile Button.PNG-a2cba512d7903e14b3fa3e1b4991b999.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Sprites/Background.png"
-dest_files=["res://.godot/imported/Background.png-11bc84fe4d7686a716d11ebb080e2204.ctex"]
+source_file="res://Assets/Sprites/Thrust Mobile Button.PNG"
+dest_files=["res://.godot/imported/Thrust Mobile Button.PNG-a2cba512d7903e14b3fa3e1b4991b999.ctex"]
 
 [params]
 

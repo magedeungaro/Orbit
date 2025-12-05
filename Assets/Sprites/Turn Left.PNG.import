@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://6axi75lpwytw"
-path="res://.godot/imported/Background.png-11bc84fe4d7686a716d11ebb080e2204.ctex"
+uid="uid://c2s2aw07goloe"
+path="res://.godot/imported/Turn Left.PNG-35719e6e785f0d9efb5f0338b2501a2e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Sprites/Background.png"
-dest_files=["res://.godot/imported/Background.png-11bc84fe4d7686a716d11ebb080e2204.ctex"]
+source_file="res://Assets/Sprites/Turn Left.PNG"
+dest_files=["res://.godot/imported/Turn Left.PNG-35719e6e785f0d9efb5f0338b2501a2e.ctex"]
 
 [params]
 
