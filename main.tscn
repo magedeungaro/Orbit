@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://cgoy04rdwt2ce"]
+[gd_scene load_steps=17 format=3 uid="uid://cgoy04rdwt2ce"]
 
 [ext_resource type="Script" uid="uid://bwh1penr54ifo" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
 [ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
@@ -11,12 +11,13 @@
 [ext_resource type="Script" uid="uid://dqxqcwujmj732" path="res://scripts/hud.gd" id="8_hud"]
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="9_bg"]
 [ext_resource type="Script" uid="uid://cm32hpkcttddn" path="res://scripts/game_manager.gd" id="10_game_mgr"]
-[ext_resource type="Texture2D" uid="uid://d0dglepoxjfb0" path="res://icon.svg" id="12_dg77c"]
+[ext_resource type="Texture2D" uid="uid://c2s2aw07goloe" path="res://Assets/Sprites/Turn Left.PNG" id="12_ycdy4"]
+[ext_resource type="Texture2D" uid="uid://bkdb5pkkjext5" path="res://Assets/Sprites/Turn Right Mobile Touch control.PNG" id="13_w48qg"]
+[ext_resource type="Script" path="res://scripts/touch_rotate_button.gd" id="14_touch_btn"]
+[ext_resource type="Texture2D" path="res://Assets/Sprites/Thrust Mobile Button.PNG" id="15_thrust"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kc8bv"]
 size = Vector2(20, 61)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_dg77c"]
 
 [node name="Main" type="Node2D"]
 
@@ -41,6 +42,7 @@ texture = ExtResource("9_bg")
 stretch_mode = 1
 
 [node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(0, -1)
 script = ExtResource("4_camera")
 
 [node name="OrbitVisualization" type="Node2D" parent="."]
@@ -85,12 +87,62 @@ script = ExtResource("10_game_mgr")
 
 [node name="TouchControls" type="CanvasLayer" parent="."]
 
-[node name="LeftTouchButton" type="TouchScreenButton" parent="TouchControls"]
-position = Vector2(186, 24)
-scale = Vector2(1.359375, 1.359375)
-texture_normal = ExtResource("12_dg77c")
-shape = SubResource("RectangleShape2D_dg77c")
-action = "rotate_left"
+[node name="TouchControlContainer" type="Control" parent="TouchControls"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
-[node name="RightTouchButton" type="TouchScreenButton" parent="TouchControls"]
-action = "rotate_right"
+[node name="LeftRotateButton" type="TextureButton" parent="TouchControls/TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -150.0
+offset_right = 120.0
+offset_bottom = -50.0
+grow_vertical = 0
+texture_normal = ExtResource("12_ycdy4")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("14_touch_btn")
+action_name = "rotate_left"
+
+[node name="RightRotateButton" type="TextureButton" parent="TouchControls/TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 140.0
+offset_top = -150.0
+offset_right = 240.0
+offset_bottom = -50.0
+grow_vertical = 0
+texture_normal = ExtResource("13_w48qg")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("14_touch_btn")
+action_name = "rotate_right"
+
+[node name="ThrustButton" type="TextureButton" parent="TouchControls/TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -120.0
+offset_top = -150.0
+offset_right = -20.0
+offset_bottom = -50.0
+grow_horizontal = 0
+grow_vertical = 0
+texture_normal = ExtResource("15_thrust")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("14_touch_btn")
+action_name = "ui_select"

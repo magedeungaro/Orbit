@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3 uid="uid://cwki65ysgyan"]
+
+[ext_resource type="Texture2D" uid="uid://c2s2aw07goloe" path="res://Assets/Sprites/Turn Left.PNG" id="1_itki5"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ycdy4"]
+radius = 128.95
+
+[node name="LeftTouchButton" type="TouchScreenButton"]
+scale = Vector2(0.26094985, 0.26094985)
+texture_normal = ExtResource("1_itki5")
+shape = SubResource("CircleShape2D_ycdy4")
+action = "rotate_left"
