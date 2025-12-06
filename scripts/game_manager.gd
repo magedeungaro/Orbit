@@ -16,10 +16,17 @@ var start_screen: Control
 var game_over_screen: Control
 var game_won_screen: Control
 var crash_screen: Control
+var options_screen: Control
 var start_button: Button
+var options_button: Button
 var restart_button: Button
 var play_again_button: Button
 var crash_restart_button: Button
+var back_button: Button
+var touch_controls_button: Button
+
+# Touch controls reference
+var touch_controls_manager: Node
 
 
 func _ready() -> void:
@@ -29,11 +36,15 @@ func _ready() -> void:
 	# Get reference to orbiting body
 	orbiting_body = get_tree().root.find_child("OrbitingBody", true, false)
 	
+	# Get reference to touch controls manager
+	touch_controls_manager = get_tree().root.find_child("TouchControls", true, false)
+	
 	# Create the UI screens
 	_create_start_screen()
 	_create_game_over_screen()
 	_create_game_won_screen()
 	_create_crash_screen()
+	_create_options_screen()
 	
 	# Connect to ship explosion signal
 	if orbiting_body != null:
@@ -109,6 +120,20 @@ func _create_start_screen() -> void:
 	start_button.add_theme_font_size_override("font_size", 20)
 	start_button.pressed.connect(_on_start_pressed)
 	vbox.add_child(start_button)
+	
+	# Options button
+	options_button = Button.new()
+	options_button.text = "OPTIONS"
+	options_button.custom_minimum_size = Vector2(200, 50)
+	options_button.add_theme_font_size_override("font_size", 20)
+	options_button.pressed.connect(_on_options_pressed)
+	vbox.add_child(options_button)
+	
+	# Setup focus navigation for start screen
+	start_button.focus_neighbor_bottom = options_button.get_path()
+	options_button.focus_neighbor_top = start_button.get_path()
+	start_button.focus_neighbor_top = options_button.get_path()
+	options_button.focus_neighbor_bottom = start_button.get_path()
 
 
 func _create_game_over_screen() -> void:
@@ -285,6 +310,96 @@ func _create_crash_screen() -> void:
 	vbox.add_child(crash_restart_button)
 
 
+func _create_options_screen() -> void:
+	options_screen = Control.new()
+	options_screen.name = "OptionsScreen"
+	options_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	options_screen.visible = false
+	add_child(options_screen)
+	
+	# Dark overlay
+	var overlay = ColorRect.new()
+	overlay.name = "Overlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.8)
+	options_screen.add_child(overlay)
+	
+	# Center container
+	var center = CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	options_screen.add_child(center)
+	
+	# VBox for content
+	var vbox = VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 20)
+	center.add_child(vbox)
+	
+	# Options title
+	var title = Label.new()
+	title.text = "OPTIONS"
+	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_color_override("font_color", Color.WHITE)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+	
+	# Spacer
+	var spacer = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 30)
+	vbox.add_child(spacer)
+	
+	# Touch Controls toggle button
+	touch_controls_button = Button.new()
+	touch_controls_button.name = "TouchControlsButton"
+	touch_controls_button.custom_minimum_size = Vector2(300, 50)
+	touch_controls_button.add_theme_font_size_override("font_size", 18)
+	touch_controls_button.pressed.connect(_on_touch_controls_pressed)
+	_update_touch_controls_button_text()
+	vbox.add_child(touch_controls_button)
+	
+	# Another spacer
+	var spacer2 = Control.new()
+	spacer2.custom_minimum_size = Vector2(0, 20)
+	vbox.add_child(spacer2)
+	
+	# Back button
+	back_button = Button.new()
+	back_button.text = "BACK"
+	back_button.custom_minimum_size = Vector2(200, 50)
+	back_button.add_theme_font_size_override("font_size", 20)
+	back_button.pressed.connect(_on_back_pressed)
+	vbox.add_child(back_button)
+	
+	# Setup focus navigation for options screen
+	touch_controls_button.focus_neighbor_bottom = back_button.get_path()
+	back_button.focus_neighbor_top = touch_controls_button.get_path()
+	touch_controls_button.focus_neighbor_top = back_button.get_path()
+	back_button.focus_neighbor_bottom = touch_controls_button.get_path()
+
+
+func _update_touch_controls_button_text() -> void:
+	if touch_controls_button == null:
+		return
+	
+	var pref_text: String
+	if touch_controls_manager != null and touch_controls_manager.has_method("get_preference"):
+		var pref = touch_controls_manager.get_preference()
+		match pref:
+			-1:
+				var auto_state = "ON" if touch_controls_manager.is_auto_touch_device() else "OFF"
+				pref_text = "Auto (" + auto_state + ")"
+			0:
+				pref_text = "Off"
+			1:
+				pref_text = "On"
+			_:
+				pref_text = "Auto"
+	else:
+		pref_text = "N/A"
+	
+	touch_controls_button.text = "Touch Controls: " + pref_text
+
+
 func _process(_delta: float) -> void:
 	# Check for game over/win conditions
 	if current_state == GameState.PLAYING and orbiting_body != null:
@@ -304,9 +419,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_R and current_state == GameState.PLAYING:
 			restart_game()
-		# Press Escape to go back to start screen
+		# Press Escape to go back to start screen or close options
 		elif event.keycode == KEY_ESCAPE:
-			if current_state == GameState.PLAYING:
+			if options_screen.visible:
+				_on_back_pressed()
+			elif current_state == GameState.PLAYING:
 				show_start_screen()
 			elif current_state == GameState.GAME_OVER or current_state == GameState.GAME_WON or current_state == GameState.CRASHED:
 				show_start_screen()
@@ -318,6 +435,11 @@ func show_start_screen() -> void:
 	game_over_screen.visible = false
 	game_won_screen.visible = false
 	crash_screen.visible = false
+	options_screen.visible = false
+	
+	# Set initial focus for keyboard navigation
+	if start_button:
+		start_button.grab_focus()
 	
 	# Pause the game
 	if orbiting_body != null:
@@ -330,6 +452,12 @@ func show_game_over() -> void:
 	game_over_screen.visible = true
 	game_won_screen.visible = false
 	crash_screen.visible = false
+	options_screen.visible = false
+	
+	# Set initial focus for keyboard navigation
+	if restart_button:
+		restart_button.grab_focus()
+	
 	emit_signal("game_over")
 
 
@@ -339,12 +467,17 @@ func show_game_won() -> void:
 	game_over_screen.visible = false
 	game_won_screen.visible = true
 	crash_screen.visible = false
+	options_screen.visible = false
 	
 	# Update stats display
 	var stats_label = game_won_screen.find_child("StatsLabel", true, false)
 	if stats_label != null and orbiting_body != null:
 		var fuel_remaining = orbiting_body.get_fuel_percentage()
 		stats_label.text = "Fuel remaining: %.1f%%" % fuel_remaining
+	
+	# Set initial focus for keyboard navigation
+	if play_again_button:
+		play_again_button.grab_focus()
 	
 	# Pause the game
 	if orbiting_body != null:
@@ -359,6 +492,11 @@ func show_crash_screen() -> void:
 	game_over_screen.visible = false
 	game_won_screen.visible = false
 	crash_screen.visible = true
+	options_screen.visible = false
+	
+	# Set initial focus for keyboard navigation
+	if crash_restart_button:
+		crash_restart_button.grab_focus()
 	
 	# Pause the game
 	if orbiting_body != null:
@@ -379,6 +517,7 @@ func start_game() -> void:
 	game_over_screen.visible = false
 	game_won_screen.visible = false
 	crash_screen.visible = false
+	options_screen.visible = false
 	
 	# Resume the game
 	if orbiting_body != null:
@@ -411,6 +550,33 @@ func _on_start_pressed() -> void:
 
 func _on_restart_pressed() -> void:
 	restart_game()
+
+
+func _on_options_pressed() -> void:
+	show_options_screen()
+
+
+func _on_back_pressed() -> void:
+	options_screen.visible = false
+	start_screen.visible = true
+	if start_button:
+		start_button.grab_focus()
+
+
+func _on_touch_controls_pressed() -> void:
+	if touch_controls_manager != null and touch_controls_manager.has_method("cycle_preference"):
+		touch_controls_manager.cycle_preference()
+		_update_touch_controls_button_text()
+
+
+func show_options_screen() -> void:
+	start_screen.visible = false
+	options_screen.visible = true
+	_update_touch_controls_button_text()
+	
+	# Set initial focus for keyboard navigation
+	if touch_controls_button:
+		touch_controls_button.grab_focus()
 
 
 func is_game_active() -> bool:

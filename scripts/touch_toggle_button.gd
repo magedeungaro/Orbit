@@ -34,6 +34,10 @@ func _on_orientation_lock_changed(lock_type: int) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Don't process input if not visible
+	if not is_visible_in_tree():
+		return
+	
 	if event is InputEventScreenTouch:
 		var touch_event = event as InputEventScreenTouch
 		if touch_event.pressed:
