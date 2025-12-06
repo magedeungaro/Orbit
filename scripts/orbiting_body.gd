@@ -196,7 +196,7 @@ func handle_thrust_input(delta: float) -> void:
 		thrust_angle -= 360
 	
 	# Apply thrust only when Space is pressed AND we have fuel AND not exploding
-	var is_thrusting = Input.is_action_pressed("ui_select") and current_fuel > 0 and not is_exploding
+	var is_thrusting = (Input.is_action_pressed("ui_select") or Input.is_action_pressed("thrust")) and current_fuel > 0 and not is_exploding
 	
 	# Show/hide engine sprite based on thrust state
 	if has_node("EngineAnimatedSprite"):
