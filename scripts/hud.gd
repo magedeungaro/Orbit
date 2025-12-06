@@ -31,8 +31,8 @@ func _ready() -> void:
 	var margin = MarginContainer.new()
 	margin.name = "MarginContainer"
 	margin.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_left", 30)
+	margin.add_theme_constant_override("margin_top", 30)
 	add_child(margin)
 	
 	# Create vertical container for labels
@@ -43,14 +43,14 @@ func _ready() -> void:
 	# Create fuel label
 	fuel_label = Label.new()
 	fuel_label.name = "FuelLabel"
-	fuel_label.add_theme_font_size_override("font_size", 16)
+	fuel_label.add_theme_font_size_override("font_size", 24)
 	fuel_label.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(fuel_label)
 	
 	# Create fuel bar
 	fuel_bar = ProgressBar.new()
 	fuel_bar.name = "FuelBar"
-	fuel_bar.custom_minimum_size = Vector2(200, 20)
+	fuel_bar.custom_minimum_size = Vector2(280, 28)
 	fuel_bar.max_value = 100
 	fuel_bar.value = 100
 	fuel_bar.show_percentage = false
@@ -76,20 +76,20 @@ func _ready() -> void:
 	
 	# Add spacer
 	var spacer = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 10)
+	spacer.custom_minimum_size = Vector2(0, 15)
 	vbox.add_child(spacer)
 	
 	# Create speed label
 	speed_label = Label.new()
 	speed_label.name = "SpeedLabel"
-	speed_label.add_theme_font_size_override("font_size", 16)
+	speed_label.add_theme_font_size_override("font_size", 24)
 	speed_label.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(speed_label)
 	
 	# Create info label
 	info_label = Label.new()
 	info_label.name = "InfoLabel"
-	info_label.add_theme_font_size_override("font_size", 14)
+	info_label.add_theme_font_size_override("font_size", 20)
 	info_label.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(info_label)
 	
@@ -131,8 +131,8 @@ func _process(_delta: float) -> void:
 	var thrust_angle = orbiting_body.thrust_angle
 	var orientation_mode = orbiting_body.get_orientation_lock_name()
 	
-	# Update info display
-	info_label.text = "Escape V: %.1f (%.0f%%)\nThrust Angle: %.0f°\nOrientation: %s\n\nControls:\nLEFT/RIGHT or Touch - Rotate\nSPACE - Thrust\nT - Prograde Lock | G - Retrograde Lock" % [
+	# Update info display (without controls - they're shown on start screen only)
+	info_label.text = "Escape V: %.1f (%.0f%%)\nThrust Angle: %.0f°\nOrientation: %s" % [
 		escape_vel, escape_percentage, thrust_angle, orientation_mode
 	]
 	

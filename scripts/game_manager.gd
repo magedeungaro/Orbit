@@ -76,13 +76,13 @@ func _create_start_screen() -> void:
 	# VBox for content
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 30)
+	vbox.add_theme_constant_override("separation", 40)
 	center.add_child(vbox)
 	
 	# Title
 	var title = Label.new()
 	title.text = "ORBITAL MECHANICS"
-	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_font_size_override("font_size", 72)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
@@ -90,42 +90,42 @@ func _create_start_screen() -> void:
 	# Subtitle
 	var subtitle = Label.new()
 	subtitle.text = "Navigate through space using gravity and thrust"
-	subtitle.add_theme_font_size_override("font_size", 18)
+	subtitle.add_theme_font_size_override("font_size", 28)
 	subtitle.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(subtitle)
 	
 	# Spacer
 	var spacer = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 20)
+	spacer.custom_minimum_size = Vector2(0, 30)
 	vbox.add_child(spacer)
 	
 	# Instructions
 	var instructions = Label.new()
-	instructions.text = "Controls:\nLEFT/RIGHT - Rotate ship\nSPACE - Thrust\nR - Restart | ESC - Menu\n\nUse gravity to conserve fuel!\nReach Earth 3 and establish a stable orbit!"
-	instructions.add_theme_font_size_override("font_size", 16)
+	instructions.text = "Controls:\nLEFT/RIGHT - Rotate ship | SPACE - Thrust\nT - Prograde Lock | G - Retrograde Lock\nR - Restart | ESC - Menu\n\nUse gravity to conserve fuel!\nReach Earth 3 and establish a stable orbit!"
+	instructions.add_theme_font_size_override("font_size", 24)
 	instructions.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	instructions.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(instructions)
 	
 	# Another spacer
 	var spacer2 = Control.new()
-	spacer2.custom_minimum_size = Vector2(0, 20)
+	spacer2.custom_minimum_size = Vector2(0, 30)
 	vbox.add_child(spacer2)
 	
 	# Start button
 	start_button = Button.new()
 	start_button.text = "START GAME"
-	start_button.custom_minimum_size = Vector2(200, 50)
-	start_button.add_theme_font_size_override("font_size", 20)
+	start_button.custom_minimum_size = Vector2(300, 70)
+	start_button.add_theme_font_size_override("font_size", 28)
 	start_button.pressed.connect(_on_start_pressed)
 	vbox.add_child(start_button)
 	
 	# Options button
 	options_button = Button.new()
 	options_button.text = "OPTIONS"
-	options_button.custom_minimum_size = Vector2(200, 50)
-	options_button.add_theme_font_size_override("font_size", 20)
+	options_button.custom_minimum_size = Vector2(300, 70)
+	options_button.add_theme_font_size_override("font_size", 28)
 	options_button.pressed.connect(_on_options_pressed)
 	vbox.add_child(options_button)
 	
@@ -158,13 +158,13 @@ func _create_game_over_screen() -> void:
 	# VBox for content
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 30)
+	vbox.add_theme_constant_override("separation", 40)
 	center.add_child(vbox)
 	
 	# Game Over title
 	var title = Label.new()
 	title.text = "OUT OF FUEL"
-	title.add_theme_font_size_override("font_size", 56)
+	title.add_theme_font_size_override("font_size", 80)
 	title.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
@@ -172,21 +172,21 @@ func _create_game_over_screen() -> void:
 	# Message
 	var message = Label.new()
 	message.text = "Your ship has run out of fuel.\nYou are now adrift in space..."
-	message.add_theme_font_size_override("font_size", 18)
+	message.add_theme_font_size_override("font_size", 28)
 	message.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
 	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(message)
 	
 	# Spacer
 	var spacer = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 20)
+	spacer.custom_minimum_size = Vector2(0, 30)
 	vbox.add_child(spacer)
 	
 	# Restart button
 	restart_button = Button.new()
 	restart_button.text = "TRY AGAIN"
-	restart_button.custom_minimum_size = Vector2(200, 50)
-	restart_button.add_theme_font_size_override("font_size", 20)
+	restart_button.custom_minimum_size = Vector2(300, 70)
+	restart_button.add_theme_font_size_override("font_size", 28)
 	restart_button.pressed.connect(_on_restart_pressed)
 	vbox.add_child(restart_button)
 
@@ -213,13 +213,13 @@ func _create_game_won_screen() -> void:
 	# VBox for content
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 30)
+	vbox.add_theme_constant_override("separation", 40)
 	center.add_child(vbox)
 	
 	# Victory title
 	var title = Label.new()
 	title.text = "🌍 STABLE ORBIT ACHIEVED! 🎉"
-	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_font_size_override("font_size", 64)
 	title.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
@@ -227,7 +227,7 @@ func _create_game_won_screen() -> void:
 	# Victory message
 	var message = Label.new()
 	message.text = "Congratulations!\nYou've successfully established\na stable orbit around Earth 3!"
-	message.add_theme_font_size_override("font_size", 20)
+	message.add_theme_font_size_override("font_size", 28)
 	message.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
 	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(message)
@@ -236,21 +236,21 @@ func _create_game_won_screen() -> void:
 	var stats = Label.new()
 	stats.name = "StatsLabel"
 	stats.text = ""
-	stats.add_theme_font_size_override("font_size", 16)
+	stats.add_theme_font_size_override("font_size", 24)
 	stats.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7))
 	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(stats)
 	
 	# Spacer
 	var spacer = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 20)
+	spacer.custom_minimum_size = Vector2(0, 30)
 	vbox.add_child(spacer)
 	
 	# Play again button
 	play_again_button = Button.new()
 	play_again_button.text = "PLAY AGAIN"
-	play_again_button.custom_minimum_size = Vector2(200, 50)
-	play_again_button.add_theme_font_size_override("font_size", 20)
+	play_again_button.custom_minimum_size = Vector2(300, 70)
+	play_again_button.add_theme_font_size_override("font_size", 28)
 	play_again_button.pressed.connect(_on_restart_pressed)
 	vbox.add_child(play_again_button)
 
@@ -277,13 +277,13 @@ func _create_crash_screen() -> void:
 	# VBox for content
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 30)
+	vbox.add_theme_constant_override("separation", 40)
 	center.add_child(vbox)
 	
 	# Crash title
 	var title = Label.new()
 	title.text = "💥 SHIP DESTROYED! 💥"
-	title.add_theme_font_size_override("font_size", 56)
+	title.add_theme_font_size_override("font_size", 80)
 	title.add_theme_color_override("font_color", Color(1.0, 0.4, 0.2))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
@@ -291,21 +291,21 @@ func _create_crash_screen() -> void:
 	# Crash message
 	var message = Label.new()
 	message.text = "Your ship crashed into a planet!\nRemember: Gravity is both friend and foe."
-	message.add_theme_font_size_override("font_size", 18)
+	message.add_theme_font_size_override("font_size", 28)
 	message.add_theme_color_override("font_color", Color(0.9, 0.8, 0.8))
 	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(message)
 	
 	# Spacer
 	var spacer = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 20)
+	spacer.custom_minimum_size = Vector2(0, 30)
 	vbox.add_child(spacer)
 	
 	# Restart button
 	crash_restart_button = Button.new()
 	crash_restart_button.text = "TRY AGAIN"
-	crash_restart_button.custom_minimum_size = Vector2(200, 50)
-	crash_restart_button.add_theme_font_size_override("font_size", 20)
+	crash_restart_button.custom_minimum_size = Vector2(300, 70)
+	crash_restart_button.add_theme_font_size_override("font_size", 28)
 	crash_restart_button.pressed.connect(_on_restart_pressed)
 	vbox.add_child(crash_restart_button)
 
@@ -332,41 +332,41 @@ func _create_options_screen() -> void:
 	# VBox for content
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 20)
+	vbox.add_theme_constant_override("separation", 40)
 	center.add_child(vbox)
 	
 	# Options title
 	var title = Label.new()
 	title.text = "OPTIONS"
-	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_font_size_override("font_size", 72)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 	
 	# Spacer
 	var spacer = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 30)
+	spacer.custom_minimum_size = Vector2(0, 40)
 	vbox.add_child(spacer)
 	
 	# Touch Controls toggle button
 	touch_controls_button = Button.new()
 	touch_controls_button.name = "TouchControlsButton"
-	touch_controls_button.custom_minimum_size = Vector2(300, 50)
-	touch_controls_button.add_theme_font_size_override("font_size", 18)
+	touch_controls_button.custom_minimum_size = Vector2(400, 70)
+	touch_controls_button.add_theme_font_size_override("font_size", 28)
 	touch_controls_button.pressed.connect(_on_touch_controls_pressed)
 	_update_touch_controls_button_text()
 	vbox.add_child(touch_controls_button)
 	
 	# Another spacer
 	var spacer2 = Control.new()
-	spacer2.custom_minimum_size = Vector2(0, 20)
+	spacer2.custom_minimum_size = Vector2(0, 30)
 	vbox.add_child(spacer2)
 	
 	# Back button
 	back_button = Button.new()
 	back_button.text = "BACK"
-	back_button.custom_minimum_size = Vector2(200, 50)
-	back_button.add_theme_font_size_override("font_size", 20)
+	back_button.custom_minimum_size = Vector2(300, 70)
+	back_button.add_theme_font_size_override("font_size", 28)
 	back_button.pressed.connect(_on_back_pressed)
 	vbox.add_child(back_button)
 	
