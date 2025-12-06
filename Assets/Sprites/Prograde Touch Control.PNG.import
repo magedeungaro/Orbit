@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://6axi75lpwytw"
-path="res://.godot/imported/Background.png-11bc84fe4d7686a716d11ebb080e2204.ctex"
+uid="uid://bgelqkalese1f"
+path="res://.godot/imported/Prograde Touch Control.PNG-0623af217347be2058a40a05544be549.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Sprites/Background.png"
-dest_files=["res://.godot/imported/Background.png-11bc84fe4d7686a716d11ebb080e2204.ctex"]
+source_file="res://Assets/Sprites/Prograde Touch Control.PNG"
+dest_files=["res://.godot/imported/Prograde Touch Control.PNG-0623af217347be2058a40a05544be549.ctex"]
 
 [params]
 

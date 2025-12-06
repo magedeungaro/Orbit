@@ -19,6 +19,17 @@ config/icon="res://icon.svg"
 
 project/assembly_name="Orbit"
 
+[input]
+
+rotate_left={
+"deadzone": 0.5,
+"events": []
+}
+rotate_right={
+"deadzone": 0.5,
+"events": []
+}
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
