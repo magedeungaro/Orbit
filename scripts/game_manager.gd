@@ -4,8 +4,9 @@ extends CanvasLayer
 signal game_started
 signal game_over
 signal game_won
+signal ship_crashed
 
-enum GameState { START_SCREEN, PLAYING, GAME_OVER, GAME_WON }
+enum GameState { START_SCREEN, PLAYING, GAME_OVER, GAME_WON, CRASHED }
 
 var current_state: GameState = GameState.START_SCREEN
 var orbiting_body: CharacterBody2D
@@ -14,9 +15,11 @@ var orbiting_body: CharacterBody2D
 var start_screen: Control
 var game_over_screen: Control
 var game_won_screen: Control
+var crash_screen: Control
 var start_button: Button
 var restart_button: Button
 var play_again_button: Button
+var crash_restart_button: Button
 
 
 func _ready() -> void:
@@ -30,6 +33,12 @@ func _ready() -> void:
 	_create_start_screen()
 	_create_game_over_screen()
 	_create_game_won_screen()
+	_create_crash_screen()
+	
+	# Connect to ship explosion signal
+	if orbiting_body != null:
+		if orbiting_body.has_signal("ship_exploded"):
+			orbiting_body.ship_exploded.connect(_on_ship_exploded)
 	
 	# Show start screen initially
 	show_start_screen()
@@ -221,11 +230,69 @@ func _create_game_won_screen() -> void:
 	vbox.add_child(play_again_button)
 
 
+func _create_crash_screen() -> void:
+	crash_screen = Control.new()
+	crash_screen.name = "CrashScreen"
+	crash_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	crash_screen.visible = false
+	add_child(crash_screen)
+	
+	# Dark overlay with red tint
+	var overlay = ColorRect.new()
+	overlay.name = "Overlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0.2, 0, 0, 0.85)
+	crash_screen.add_child(overlay)
+	
+	# Center container
+	var center = CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	crash_screen.add_child(center)
+	
+	# VBox for content
+	var vbox = VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 30)
+	center.add_child(vbox)
+	
+	# Crash title
+	var title = Label.new()
+	title.text = "💥 SHIP DESTROYED! 💥"
+	title.add_theme_font_size_override("font_size", 56)
+	title.add_theme_color_override("font_color", Color(1.0, 0.4, 0.2))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+	
+	# Crash message
+	var message = Label.new()
+	message.text = "Your ship crashed into a planet!\nRemember: Gravity is both friend and foe."
+	message.add_theme_font_size_override("font_size", 18)
+	message.add_theme_color_override("font_color", Color(0.9, 0.8, 0.8))
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(message)
+	
+	# Spacer
+	var spacer = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 20)
+	vbox.add_child(spacer)
+	
+	# Restart button
+	crash_restart_button = Button.new()
+	crash_restart_button.text = "TRY AGAIN"
+	crash_restart_button.custom_minimum_size = Vector2(200, 50)
+	crash_restart_button.add_theme_font_size_override("font_size", 20)
+	crash_restart_button.pressed.connect(_on_restart_pressed)
+	vbox.add_child(crash_restart_button)
+
+
 func _process(_delta: float) -> void:
 	# Check for game over/win conditions
 	if current_state == GameState.PLAYING and orbiting_body != null:
+		# Check for crash (ship exploded)
+		if orbiting_body.is_ship_exploded():
+			show_crash_screen()
 		# Check for game over (out of fuel)
-		if orbiting_body.current_fuel <= 0:
+		elif orbiting_body.current_fuel <= 0:
 			show_game_over()
 		# Check for win condition (stable orbit around Earth3)
 		elif orbiting_body.is_in_stable_orbit():
@@ -241,7 +308,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_ESCAPE:
 			if current_state == GameState.PLAYING:
 				show_start_screen()
-			elif current_state == GameState.GAME_OVER or current_state == GameState.GAME_WON:
+			elif current_state == GameState.GAME_OVER or current_state == GameState.GAME_WON or current_state == GameState.CRASHED:
 				show_start_screen()
 
 
@@ -250,6 +317,7 @@ func show_start_screen() -> void:
 	start_screen.visible = true
 	game_over_screen.visible = false
 	game_won_screen.visible = false
+	crash_screen.visible = false
 	
 	# Pause the game
 	if orbiting_body != null:
@@ -261,6 +329,7 @@ func show_game_over() -> void:
 	start_screen.visible = false
 	game_over_screen.visible = true
 	game_won_screen.visible = false
+	crash_screen.visible = false
 	emit_signal("game_over")
 
 
@@ -269,6 +338,7 @@ func show_game_won() -> void:
 	start_screen.visible = false
 	game_over_screen.visible = false
 	game_won_screen.visible = true
+	crash_screen.visible = false
 	
 	# Update stats display
 	var stats_label = game_won_screen.find_child("StatsLabel", true, false)
@@ -283,11 +353,32 @@ func show_game_won() -> void:
 	emit_signal("game_won")
 
 
+func show_crash_screen() -> void:
+	current_state = GameState.CRASHED
+	start_screen.visible = false
+	game_over_screen.visible = false
+	game_won_screen.visible = false
+	crash_screen.visible = true
+	
+	# Pause the game
+	if orbiting_body != null:
+		orbiting_body.set_physics_process(false)
+	
+	emit_signal("ship_crashed")
+
+
+func _on_ship_exploded() -> void:
+	# This is called immediately when ship explodes
+	# The crash screen will be shown after explosion animation completes
+	print("Ship explosion signal received")
+
+
 func start_game() -> void:
 	current_state = GameState.PLAYING
 	start_screen.visible = false
 	game_over_screen.visible = false
 	game_won_screen.visible = false
+	crash_screen.visible = false
 	
 	# Resume the game
 	if orbiting_body != null:
@@ -308,6 +399,8 @@ func restart_game() -> void:
 		orbiting_body.time_in_stable_orbit = 0.0
 		orbiting_body.orbit_distance_samples.clear()
 		orbiting_body.total_orbit_angle = 0.0
+		# Reset explosion state
+		orbiting_body.reset_explosion()
 	
 	start_game()
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://cgoy04rdwt2ce"]
+[gd_scene load_steps=26 format=3 uid="uid://cgoy04rdwt2ce"]
 
 [ext_resource type="Script" uid="uid://bwh1penr54ifo" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
 [ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
@@ -7,19 +7,102 @@
 [ext_resource type="Texture2D" uid="uid://fyxnlyles8s2" path="res://Assets/Sprites/Planet 2.PNG" id="5_683ew"]
 [ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="5_planet3"]
 [ext_resource type="Texture2D" uid="uid://bvev41whwp4ii" path="res://Assets/Sprites/Planet 1.PNG" id="6_planet1"]
-[ext_resource type="Texture2D" uid="uid://bxvf2ptnyrcfq" path="res://Assets/Sprites/Ship.PNG" id="7_wyn4c"]
+[ext_resource type="Texture2D" uid="uid://sfjq0xncsu0a" path="res://Assets/Sprites/ship.png" id="8_dg77c"]
 [ext_resource type="Script" uid="uid://dqxqcwujmj732" path="res://scripts/hud.gd" id="8_hud"]
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="9_bg"]
+[ext_resource type="Texture2D" uid="uid://djr7bg0t0hmgn" path="res://Assets/Sprites/explosion.png" id="9_dg77c"]
 [ext_resource type="Script" uid="uid://cm32hpkcttddn" path="res://scripts/game_manager.gd" id="10_game_mgr"]
-[ext_resource type="Texture2D" uid="uid://c2s2aw07goloe" path="res://Assets/Sprites/Turn Left.PNG" id="12_ycdy4"]
-[ext_resource type="Texture2D" uid="uid://bkdb5pkkjext5" path="res://Assets/Sprites/Turn Right Mobile Touch control.PNG" id="13_w48qg"]
-[ext_resource type="Script" uid="uid://dnpycpwdqswyl" path="res://scripts/touch_rotate_button.gd" id="14_touch_btn"]
-[ext_resource type="Texture2D" uid="uid://b8poanb6efsb0" path="res://Assets/Sprites/Thrust Mobile Button.PNG" id="15_thrust"]
-[ext_resource type="Texture2D" uid="uid://d0oo3cw8ue2cu" path="res://Assets/Sprites/Reset Button Touch Control.PNG" id="16_reset"]
-[ext_resource type="Script" uid="uid://bxsu6bukorl6c" path="res://scripts/touch_reset_button.gd" id="17_reset_btn"]
+[ext_resource type="Texture2D" uid="uid://d37d55a3m42u3" path="res://Assets/Sprites/engine.png" id="10_ycdy4"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kc8bv"]
-size = Vector2(20, 61)
+size = Vector2(78, 87)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dg77c"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(0, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ycdy4"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(48, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w48qg"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(96, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vivmo"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(144, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2cqfq"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(192, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yaehf"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(240, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_074og"]
+atlas = ExtResource("9_dg77c")
+region = Rect2(288, 0, 48, 48)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_074og"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("8_dg77c")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dg77c")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ycdy4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w48qg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vivmo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2cqfq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yaehf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_074og")
+}],
+"loop": false,
+"name": &"exploding",
+"speed": 7.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cegan"]
+atlas = ExtResource("10_ycdy4")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_82xsv"]
+atlas = ExtResource("10_ycdy4")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_getpj"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cegan")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_82xsv")
+}],
+"loop": true,
+"name": &"default",
+"speed": 8.0
+}]
 
 [node name="Main" type="Node2D"]
 
@@ -66,13 +149,23 @@ mass = 1000.0
 max_fuel = 750.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="OrbitingBody"]
-position = Vector2(1, -14.5)
+position = Vector2(0, -1.5)
 shape = SubResource("RectangleShape2D_kc8bv")
 
-[node name="Sprite2D" type="Sprite2D" parent="OrbitingBody"]
-position = Vector2(1, -9)
-scale = Vector2(0.122298, 0.122298)
-texture = ExtResource("7_wyn4c")
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="OrbitingBody"]
+texture_filter = 1
+position = Vector2(1533.9999, 1843)
+scale = Vector2(2.818299, 2.811)
+sprite_frames = SubResource("SpriteFrames_074og")
+offset = Vector2(-544, -656)
+
+[node name="EngineAnimatedSprite" type="AnimatedSprite2D" parent="OrbitingBody"]
+texture_filter = 1
+position = Vector2(9.059906e-06, 79.00001)
+scale = Vector2(2.2500005, 2.2500005)
+sprite_frames = SubResource("SpriteFrames_getpj")
+autoplay = "default"
+frame_progress = 0.33379754
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("8_hud")
