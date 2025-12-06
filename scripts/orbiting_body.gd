@@ -53,7 +53,12 @@ var explosion_time: float = 0.0
 @export var explosion_duration: float = 1.0  # How long the explosion lasts
 @export var planet_collision_radius: float = 30.0  # Distance at which ship collides with planet
 
+# Prograde/Retrograde lock state
+enum OrientationLock { NONE, PROGRADE, RETROGRADE }
+var orientation_lock: OrientationLock = OrientationLock.NONE
+
 signal ship_exploded  # Signal emitted when ship explodes
+signal orientation_lock_changed(lock_type: int)  # Signal emitted when orientation lock changes
 
 
 func _ready() -> void:
@@ -183,11 +188,28 @@ func _physics_process(delta: float) -> void:
 
 
 func handle_thrust_input(delta: float) -> void:
-	# Handle thrust angle rotation with left/right arrows or touch controls
-	if Input.is_action_pressed("ui_left") or Input.is_action_pressed("rotate_left"):
-		thrust_angle -= thrust_angle_rotation_speed * delta
-	if Input.is_action_pressed("ui_right") or Input.is_action_pressed("rotate_right"):
-		thrust_angle += thrust_angle_rotation_speed * delta
+	# Handle prograde/retrograde lock toggle
+	if Input.is_action_just_pressed("toggle_prograde"):
+		toggle_prograde_lock()
+	if Input.is_action_just_pressed("toggle_retrograde"):
+		toggle_retrograde_lock()
+	
+	# Check if user is trying to manually rotate - disable any lock if so
+	var is_manually_rotating = Input.is_action_pressed("ui_left") or Input.is_action_pressed("rotate_left") or Input.is_action_pressed("ui_right") or Input.is_action_pressed("rotate_right")
+	if is_manually_rotating and orientation_lock != OrientationLock.NONE:
+		orientation_lock = OrientationLock.NONE
+		print("🔓 Orientation lock DISABLED (manual rotation)")
+		emit_signal("orientation_lock_changed", orientation_lock)
+	
+	# If locked to prograde or retrograde, auto-orient the ship
+	if orientation_lock != OrientationLock.NONE:
+		update_orientation_lock()
+	else:
+		# Handle thrust angle rotation with left/right arrows or touch controls
+		if Input.is_action_pressed("ui_left") or Input.is_action_pressed("rotate_left"):
+			thrust_angle -= thrust_angle_rotation_speed * delta
+		if Input.is_action_pressed("ui_right") or Input.is_action_pressed("rotate_right"):
+			thrust_angle += thrust_angle_rotation_speed * delta
 	
 	# Normalize angle to 0-360 range
 	while thrust_angle < 0:
@@ -634,3 +656,118 @@ func _draw() -> void:
 				else:
 					current_pos += gap_length
 				is_dot = not is_dot
+
+
+func toggle_prograde_lock() -> void:
+	# Toggle prograde lock on/off
+	if orientation_lock == OrientationLock.PROGRADE:
+		orientation_lock = OrientationLock.NONE
+		print("🔓 Prograde lock DISABLED")
+	else:
+		orientation_lock = OrientationLock.PROGRADE
+		print("🔒 Prograde lock ENABLED")
+	emit_signal("orientation_lock_changed", orientation_lock)
+
+
+func toggle_retrograde_lock() -> void:
+	# Toggle retrograde lock on/off
+	if orientation_lock == OrientationLock.RETROGRADE:
+		orientation_lock = OrientationLock.NONE
+		print("🔓 Retrograde lock DISABLED")
+	else:
+		orientation_lock = OrientationLock.RETROGRADE
+		print("🔒 Retrograde lock ENABLED")
+	emit_signal("orientation_lock_changed", orientation_lock)
+
+
+func set_prograde_lock(enabled: bool) -> void:
+	# Explicitly set prograde lock state
+	if enabled:
+		orientation_lock = OrientationLock.PROGRADE
+	elif orientation_lock == OrientationLock.PROGRADE:
+		orientation_lock = OrientationLock.NONE
+	emit_signal("orientation_lock_changed", orientation_lock)
+
+
+func set_retrograde_lock(enabled: bool) -> void:
+	# Explicitly set retrograde lock state
+	if enabled:
+		orientation_lock = OrientationLock.RETROGRADE
+	elif orientation_lock == OrientationLock.RETROGRADE:
+		orientation_lock = OrientationLock.NONE
+	emit_signal("orientation_lock_changed", orientation_lock)
+
+
+func update_orientation_lock() -> void:
+	# Auto-orient the ship based on current velocity direction
+	if velocity.length() < 1.0:
+		# Not enough velocity to determine direction - disable lock
+		if orientation_lock != OrientationLock.NONE:
+			orientation_lock = OrientationLock.NONE
+			print("🔓 Orientation lock DISABLED (velocity too low)")
+			emit_signal("orientation_lock_changed", orientation_lock)
+		return
+	
+	# Calculate the prograde direction (direction of velocity)
+	var prograde_angle = rad_to_deg(velocity.angle())
+	
+	# Determine target angle based on lock type
+	var target_angle: float
+	if orientation_lock == OrientationLock.PROGRADE:
+		# Point in direction of travel (prograde)
+		target_angle = prograde_angle
+	elif orientation_lock == OrientationLock.RETROGRADE:
+		# Point opposite to direction of travel (retrograde)
+		target_angle = prograde_angle + 180.0
+	else:
+		return
+	
+	# Normalize target angle to 0-360 range
+	while target_angle < 0:
+		target_angle += 360
+	while target_angle >= 360:
+		target_angle -= 360
+	
+	# Calculate the shortest angle difference
+	var angle_diff = target_angle - thrust_angle
+	
+	# Normalize to -180 to 180 range for shortest rotation
+	while angle_diff > 180:
+		angle_diff -= 360
+	while angle_diff < -180:
+		angle_diff += 360
+	
+	# Rotate toward target using the same rotation speed as manual control
+	var delta = get_physics_process_delta_time()
+	var max_rotation = thrust_angle_rotation_speed * delta
+	
+	if abs(angle_diff) <= max_rotation:
+		# Close enough, snap to target
+		thrust_angle = target_angle
+	elif angle_diff > 0:
+		# Rotate clockwise
+		thrust_angle += max_rotation
+	else:
+		# Rotate counter-clockwise
+		thrust_angle -= max_rotation
+	
+	# Normalize angle
+	while thrust_angle < 0:
+		thrust_angle += 360
+	while thrust_angle >= 360:
+		thrust_angle -= 360
+
+
+func get_orientation_lock() -> OrientationLock:
+	return orientation_lock
+
+
+func get_orientation_lock_name() -> String:
+	match orientation_lock:
+		OrientationLock.NONE:
+			return "Manual"
+		OrientationLock.PROGRADE:
+			return "Prograde"
+		OrientationLock.RETROGRADE:
+			return "Retrograde"
+	return "Unknown"

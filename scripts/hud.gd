@@ -129,10 +129,11 @@ func _process(_delta: float) -> void:
 	var escape_vel = orbiting_body.calculate_current_escape_velocity()
 	var escape_percentage = (current_speed / escape_vel * 100.0) if escape_vel > 0 else 0.0
 	var thrust_angle = orbiting_body.thrust_angle
+	var orientation_mode = orbiting_body.get_orientation_lock_name()
 	
 	# Update info display
-	info_label.text = "Escape V: %.1f (%.0f%%)\nThrust Angle: %.0f°\n\nControls:\nLEFT/RIGHT or Touch - Rotate\nSPACE - Thrust" % [
-		escape_vel, escape_percentage, thrust_angle
+	info_label.text = "Escape V: %.1f (%.0f%%)\nThrust Angle: %.0f°\nOrientation: %s\n\nControls:\nLEFT/RIGHT or Touch - Rotate\nSPACE - Thrust\nT - Prograde Lock | G - Retrograde Lock" % [
+		escape_vel, escape_percentage, thrust_angle, orientation_mode
 	]
 	
 	# Update target body reference if needed
