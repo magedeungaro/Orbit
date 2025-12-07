@@ -9,8 +9,12 @@ var goal_indicator: Control
 var target_body: Node2D = null
 var camera: Camera2D = null
 
+var audiowide_font: Font
+
 
 func _ready() -> void:
+	audiowide_font = load("res://Assets/fonts/Audiowide/Audiowide-Regular.ttf")
+	
 	orbiting_body = get_tree().root.find_child("Ship", true, false)
 	if orbiting_body == null:
 		return
@@ -35,6 +39,7 @@ func _create_ui() -> void:
 	
 	fuel_label = Label.new()
 	fuel_label.name = "FuelLabel"
+	fuel_label.add_theme_font_override("font", audiowide_font)
 	fuel_label.add_theme_font_size_override("font_size", 24)
 	fuel_label.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(fuel_label)
@@ -69,12 +74,14 @@ func _create_ui() -> void:
 	
 	speed_label = Label.new()
 	speed_label.name = "SpeedLabel"
+	speed_label.add_theme_font_override("font", audiowide_font)
 	speed_label.add_theme_font_size_override("font_size", 24)
 	speed_label.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(speed_label)
 	
 	info_label = Label.new()
 	info_label.name = "InfoLabel"
+	info_label.add_theme_font_override("font", audiowide_font)
 	info_label.add_theme_font_size_override("font_size", 20)
 	info_label.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(info_label)

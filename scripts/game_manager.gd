@@ -10,6 +10,7 @@ const OptionsScreenScene = preload("res://scenes/ui/options_screen.tscn")
 const LevelSelectScreenScene = preload("res://scenes/ui/level_select_screen.tscn")
 const PauseScreenScene = preload("res://scenes/ui/pause_screen.tscn")
 const PlanetScene = preload("res://scenes/prefabs/planet.tscn")
+const AudiowideFont = preload("res://Assets/fonts/Audiowide/Audiowide-Regular.ttf")
 
 var current_state: GameState = GameState.START_SCREEN
 var orbiting_body: CharacterBody2D
@@ -167,6 +168,7 @@ func _setup_next_level_button() -> void:
 	next_level_button = Button.new()
 	next_level_button.name = "NextLevelButton"
 	next_level_button.custom_minimum_size = Vector2(250, 55)
+	next_level_button.add_theme_font_override("font", AudiowideFont)
 	next_level_button.add_theme_font_size_override("font_size", 24)
 	next_level_button.text = "NEXT LEVEL"
 	next_level_button.pressed.connect(_on_next_level_pressed)
@@ -192,6 +194,7 @@ func _populate_level_buttons() -> void:
 	for level in levels:
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(350, 60)
+		btn.add_theme_font_override("font", AudiowideFont)
 		btn.add_theme_font_size_override("font_size", 20)
 		
 		var is_unlocked = LevelManager.is_level_unlocked(level.id)

@@ -1,0 +1,16 @@
+[gd_resource type="Theme" load_steps=2 format=3]
+
+[ext_resource type="FontFile" uid="uid://dxrcqjqwqwqwq" path="res://Assets/fonts/Audiowide/Audiowide-Regular.ttf" id="1_font"]
+
+[resource]
+default_font = ExtResource("1_font")
+default_font_size = 20
+
+Button/fonts/font = ExtResource("1_font")
+Label/fonts/font = ExtResource("1_font")
+LineEdit/fonts/font = ExtResource("1_font")
+TextEdit/fonts/font = ExtResource("1_font")
+OptionButton/fonts/font = ExtResource("1_font")
+PopupMenu/fonts/font = ExtResource("1_font")
+CheckBox/fonts/font = ExtResource("1_font")
+CheckButton/fonts/font = ExtResource("1_font")
