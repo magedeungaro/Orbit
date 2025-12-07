@@ -5,7 +5,7 @@
 [sub_resource type="CircleShape2D" id="1"]
 radius = 156.003
 
-[node name="CentralBody" type="CharacterBody2D"]
+[node name="Planet" type="CharacterBody2D"]
 position = Vector2(502, 328)
 script = ExtResource("1_4ovjt")
 
