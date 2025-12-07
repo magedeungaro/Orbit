@@ -60,6 +60,12 @@ text = "OPTIONS"
 custom_minimum_size = Vector2(0, 15)
 layout_mode = 2
 
+[node name="SelectLevelButton" type="Button" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(280, 55)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "SELECT LEVEL"
+
 [node name="QuitToMenuButton" type="Button" parent="CenterContainer/VBoxContainer"]
 custom_minimum_size = Vector2(280, 55)
 layout_mode = 2

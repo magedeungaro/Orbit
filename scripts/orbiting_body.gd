@@ -16,7 +16,6 @@ extends CharacterBody2D
 @export var show_orbit_trail: bool = true
 @export var orbit_trail_color: Color = Color.MAGENTA
 @export var trail_max_points: int = 500
-@export var use_escape_velocity_thrust: bool = false
 @export var thrust_angle_rotation_speed: float = 180.0
 @export var show_trajectory: bool = true
 @export var trajectory_prediction_time: float = 15.0
@@ -146,9 +145,8 @@ func handle_thrust_input(delta: float) -> void:
 	if is_thrusting:
 		var thrust_angle_rad = deg_to_rad(thrust_angle)
 		var thrust_direction = Vector2(-cos(thrust_angle_rad), -sin(thrust_angle_rad))
-		var effective_thrust = calculate_escape_velocity_thrust() if use_escape_velocity_thrust else thrust_force
 		current_fuel = max(0, current_fuel - fuel_consumption_rate * delta)
-		velocity += (thrust_direction * effective_thrust) * delta
+		velocity += (thrust_direction * thrust_force) * delta
 
 
 func get_fuel_percentage() -> float:
@@ -271,46 +269,6 @@ func calculate_sphere_of_influence() -> float:
 	var base_gravity = 100000.0
 	var gravity_ratio = gravitational_constant / base_gravity
 	return base_sphere_of_influence * sqrt(gravity_ratio)
-
-
-func calculate_escape_velocity_thrust() -> float:
-	if central_bodies.is_empty():
-		return thrust_force
-	
-	var closest_body = null
-	var closest_distance = INF
-	
-	for body in central_bodies:
-		var dist = (body.global_position - global_position).length()
-		if dist < closest_distance:
-			closest_distance = dist
-			closest_body = body
-	
-	if closest_body == null or closest_distance < 1.0:
-		return thrust_force
-	
-	var escape_velocity = sqrt((2.0 * gravitational_constant * closest_body.mass) / closest_distance)
-	var required_acceleration = escape_velocity / 5.0
-	return required_acceleration * mass
-
-
-func calculate_current_escape_velocity() -> float:
-	if central_bodies.is_empty():
-		return 0.0
-	
-	var closest_body = null
-	var closest_distance = INF
-	
-	for body in central_bodies:
-		var dist = (body.global_position - global_position).length()
-		if dist < closest_distance:
-			closest_distance = dist
-			closest_body = body
-	
-	if closest_body == null or closest_distance < 1.0:
-		return 0.0
-	
-	return sqrt((2.0 * gravitational_constant * closest_body.mass) / closest_distance)
 
 
 func apply_gravity_from_all_bodies(delta: float) -> void:
@@ -488,9 +446,11 @@ func update_orientation_lock() -> void:
 	var target_angle: float
 	
 	if orientation_lock == OrientationLock.PROGRADE:
-		target_angle = prograde_angle
-	elif orientation_lock == OrientationLock.RETROGRADE:
+		# Prograde: nozzle opposite to velocity, thrust in direction of travel
 		target_angle = prograde_angle + 180.0
+	elif orientation_lock == OrientationLock.RETROGRADE:
+		# Retrograde: nozzle in velocity direction, thrust against direction of travel
+		target_angle = prograde_angle
 	else:
 		return
 	

@@ -33,6 +33,7 @@ var options_button: Button
 var level_select_button: Button
 var quit_button: Button
 var restart_button: Button
+var restart_level_button: Button
 var play_again_button: Button
 var next_level_button: Button
 var crash_restart_button: Button
@@ -41,14 +42,27 @@ var touch_controls_button: Button
 var level_select_back_button: Button
 var level_buttons: Array[Button] = []
 
+# End game screen buttons
+var game_over_select_level_button: Button
+var game_over_quit_to_menu_button: Button
+var crash_select_level_button: Button
+var crash_quit_to_menu_button: Button
+var game_won_select_level_button: Button
+var game_won_quit_to_menu_button: Button
+
 # Pause screen buttons
 var resume_button: Button
 var pause_options_button: Button
+var pause_select_level_button: Button
 var quit_to_menu_button: Button
 var quit_to_desktop_button: Button
 
 # Track where options was opened from
 var _options_opened_from_pause: bool = false
+
+# Track where level select was opened from
+enum LevelSelectContext { MAIN_MENU, PAUSE, END_GAME }
+var _level_select_context: LevelSelectContext = LevelSelectContext.MAIN_MENU
 
 # Player container in main scene (to hold the ship from level scenes)
 var player_container: Node2D
@@ -93,19 +107,32 @@ func _setup_ui_screens() -> void:
 	add_child(game_over_screen)
 	restart_button = game_over_screen.get_node("CenterContainer/VBoxContainer/RestartButton")
 	restart_button.pressed.connect(_on_restart_pressed)
+	game_over_select_level_button = game_over_screen.get_node("CenterContainer/VBoxContainer/SelectLevelButton")
+	game_over_select_level_button.pressed.connect(_on_endgame_select_level_pressed)
+	game_over_quit_to_menu_button = game_over_screen.get_node("CenterContainer/VBoxContainer/QuitToMenuButton")
+	game_over_quit_to_menu_button.pressed.connect(_on_quit_to_menu_pressed)
 	
 	game_won_screen = GameWonScreenScene.instantiate()
 	game_won_screen.visible = false
 	add_child(game_won_screen)
-	play_again_button = game_won_screen.get_node("CenterContainer/VBoxContainer/PlayAgainButton")
-	play_again_button.pressed.connect(_on_restart_pressed)
+	restart_level_button = game_won_screen.get_node("CenterContainer/VBoxContainer/PlayAgainButton")
+	restart_level_button.pressed.connect(_on_restart_pressed)
+	game_won_select_level_button = game_won_screen.get_node("CenterContainer/VBoxContainer/SelectLevelButton")
+	game_won_select_level_button.pressed.connect(_on_endgame_select_level_pressed)
+	game_won_quit_to_menu_button = game_won_screen.get_node("CenterContainer/VBoxContainer/QuitToMenuButton")
+	game_won_quit_to_menu_button.pressed.connect(_on_quit_to_menu_pressed)
 	_setup_next_level_button()
+	_setup_play_again_button()
 	
 	crash_screen = CrashScreenScene.instantiate()
 	crash_screen.visible = false
 	add_child(crash_screen)
 	crash_restart_button = crash_screen.get_node("CenterContainer/VBoxContainer/RestartButton")
 	crash_restart_button.pressed.connect(_on_restart_pressed)
+	crash_select_level_button = crash_screen.get_node("CenterContainer/VBoxContainer/SelectLevelButton")
+	crash_select_level_button.pressed.connect(_on_endgame_select_level_pressed)
+	crash_quit_to_menu_button = crash_screen.get_node("CenterContainer/VBoxContainer/QuitToMenuButton")
+	crash_quit_to_menu_button.pressed.connect(_on_quit_to_menu_pressed)
 	
 	options_screen = OptionsScreenScene.instantiate()
 	options_screen.visible = false
@@ -127,15 +154,17 @@ func _setup_pause_screen() -> void:
 	
 	resume_button = pause_screen.get_node("CenterContainer/VBoxContainer/ResumeButton")
 	pause_options_button = pause_screen.get_node("CenterContainer/VBoxContainer/OptionsButton")
+	pause_select_level_button = pause_screen.get_node("CenterContainer/VBoxContainer/SelectLevelButton")
 	quit_to_menu_button = pause_screen.get_node("CenterContainer/VBoxContainer/QuitToMenuButton")
 	quit_to_desktop_button = pause_screen.get_node("CenterContainer/VBoxContainer/QuitToDesktopButton")
 	
 	resume_button.pressed.connect(_on_resume_pressed)
 	pause_options_button.pressed.connect(_on_pause_options_pressed)
+	pause_select_level_button.pressed.connect(_on_pause_select_level_pressed)
 	quit_to_menu_button.pressed.connect(_on_quit_to_menu_pressed)
 	quit_to_desktop_button.pressed.connect(_on_quit_to_desktop_pressed)
 	
-	_setup_focus_neighbors_four(resume_button, pause_options_button, quit_to_menu_button, quit_to_desktop_button)
+	_setup_focus_neighbors_five(resume_button, pause_options_button, pause_select_level_button, quit_to_menu_button, quit_to_desktop_button)
 
 
 func _setup_focus_neighbors(button1: Button, button2: Button) -> void:
@@ -165,6 +194,19 @@ func _setup_focus_neighbors_four(button1: Button, button2: Button, button3: Butt
 	button4.focus_neighbor_bottom = button1.get_path()
 
 
+func _setup_focus_neighbors_five(button1: Button, button2: Button, button3: Button, button4: Button, button5: Button) -> void:
+	button1.focus_neighbor_bottom = button2.get_path()
+	button1.focus_neighbor_top = button5.get_path()
+	button2.focus_neighbor_top = button1.get_path()
+	button2.focus_neighbor_bottom = button3.get_path()
+	button3.focus_neighbor_top = button2.get_path()
+	button3.focus_neighbor_bottom = button4.get_path()
+	button4.focus_neighbor_top = button3.get_path()
+	button4.focus_neighbor_bottom = button5.get_path()
+	button5.focus_neighbor_top = button4.get_path()
+	button5.focus_neighbor_bottom = button1.get_path()
+
+
 func _setup_level_select_screen() -> void:
 	level_select_screen = LevelSelectScreenScene.instantiate()
 	level_select_screen.visible = false
@@ -186,10 +228,26 @@ func _setup_next_level_button() -> void:
 	next_level_button.text = "NEXT LEVEL"
 	next_level_button.pressed.connect(_on_next_level_pressed)
 	
-	# Insert before PlayAgainButton
-	var play_again_index = play_again_button.get_index()
+	# Insert before RestartLevelButton
+	var restart_level_index = restart_level_button.get_index()
 	vbox.add_child(next_level_button)
-	vbox.move_child(next_level_button, play_again_index)
+	vbox.move_child(next_level_button, restart_level_index)
+
+
+func _setup_play_again_button() -> void:
+	var vbox = game_won_screen.get_node("CenterContainer/VBoxContainer")
+	play_again_button = Button.new()
+	play_again_button.name = "PlayAgainButton"
+	play_again_button.custom_minimum_size = Vector2(250, 55)
+	play_again_button.add_theme_font_override("font", AudiowideFont)
+	play_again_button.add_theme_font_size_override("font_size", 24)
+	play_again_button.text = "PLAY AGAIN"
+	play_again_button.pressed.connect(_on_play_again_pressed)
+	
+	# Add after restart level button
+	var restart_level_index = restart_level_button.get_index()
+	vbox.add_child(play_again_button)
+	vbox.move_child(play_again_button, restart_level_index + 1)
 
 
 func _populate_level_buttons() -> void:
@@ -367,10 +425,16 @@ func show_game_won() -> void:
 			next_level_button.visible = LevelManager.has_next_level()
 			if next_level_button.visible:
 				next_level_button.grab_focus()
+				if play_again_button:
+					play_again_button.visible = false
 			else:
-				play_again_button.grab_focus()
+				if play_again_button:
+					play_again_button.visible = true
+					play_again_button.grab_focus()
+				else:
+					restart_level_button.grab_focus()
 	else:
-		play_again_button.grab_focus()
+		restart_level_button.grab_focus()
 	
 	if orbiting_body:
 		orbiting_body.set_physics_process(false)
@@ -416,7 +480,8 @@ func show_options_from_pause() -> void:
 	touch_controls_button.grab_focus()
 
 
-func show_level_select_screen() -> void:
+func show_level_select_screen(context: LevelSelectContext = LevelSelectContext.MAIN_MENU) -> void:
+	_level_select_context = context
 	current_state = GameState.LEVEL_SELECT
 	_hide_all_screens()
 	level_select_screen.visible = true
@@ -628,21 +693,39 @@ func _on_restart_pressed() -> void:
 	restart_game()
 
 
+func _on_play_again_pressed() -> void:
+	if LevelManager:
+		LevelManager.set_current_level(1)
+	restart_game()
+
+
 func _on_options_pressed() -> void:
 	show_options_screen()
 
 
 func _on_level_select_pressed() -> void:
-	show_level_select_screen()
+	show_level_select_screen(LevelSelectContext.MAIN_MENU)
 
 
 func _on_level_select_back_pressed() -> void:
 	level_select_screen.visible = false
-	start_screen.visible = true
-	start_button.grab_focus()
+	
+	match _level_select_context:
+		LevelSelectContext.MAIN_MENU:
+			start_screen.visible = true
+			start_button.grab_focus()
+		LevelSelectContext.PAUSE:
+			pause_screen.visible = true
+			resume_button.grab_focus()
+		LevelSelectContext.END_GAME:
+			# Go back to main menu since the game ended
+			get_tree().paused = false
+			show_start_screen()
 
 
 func _on_level_button_pressed(level_id: int) -> void:
+	# Unpause if we came from pause or end game
+	get_tree().paused = false
 	if LevelManager:
 		LevelManager.set_current_level(level_id)
 	start_game()
@@ -669,6 +752,14 @@ func _on_resume_pressed() -> void:
 
 func _on_pause_options_pressed() -> void:
 	show_options_from_pause()
+
+
+func _on_pause_select_level_pressed() -> void:
+	show_level_select_screen(LevelSelectContext.PAUSE)
+
+
+func _on_endgame_select_level_pressed() -> void:
+	show_level_select_screen(LevelSelectContext.END_GAME)
 
 
 func _on_quit_to_menu_pressed() -> void:
