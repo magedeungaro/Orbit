@@ -51,6 +51,7 @@ signal orientation_lock_changed(lock_type: int)
 
 
 func _ready() -> void:
+	current_fuel = max_fuel
 	var root = get_tree().root
 	central_bodies = _find_all_nodes_with_script(root, "central_body")
 	
