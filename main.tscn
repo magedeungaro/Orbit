@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bwh1penr54ifo" path="res://scripts/orbiting_body.gd" id="2_eevcs"]
 [ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
-[ext_resource type="PackedScene" uid="uid://dqsxdkmwt88n5" path="res://Planeja.tscn" id="3_u5sff"]
+[ext_resource type="PackedScene" uid="uid://dqsxdkmwt88n5" path="res://scenes/prefabs/planet.tscn" id="3_u5sff"]
 [ext_resource type="Script" uid="uid://derr4cln3we0j" path="res://scripts/camera_follow.gd" id="4_camera"]
 [ext_resource type="Texture2D" uid="uid://fyxnlyles8s2" path="res://Assets/Sprites/Planet 2.PNG" id="5_683ew"]
 [ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="5_planet3"]
@@ -21,7 +21,7 @@
 [ext_resource type="Script" uid="uid://bxsu6bukorl6c" path="res://scripts/touch_reset_button.gd" id="17_reset_btn"]
 [ext_resource type="Texture2D" uid="uid://bgelqkalese1f" path="res://Assets/Sprites/Prograde Touch Control.PNG" id="18_prograde"]
 [ext_resource type="Script" uid="uid://dr7ei0xt5rpp" path="res://scripts/touch_toggle_button.gd" id="19_toggle_btn"]
-[ext_resource type="Script" path="res://scripts/touch_controls_manager.gd" id="20_touch_mgr"]
+[ext_resource type="Script" uid="uid://dgoolc6vfcfy6" path="res://scripts/touch_controls_manager.gd" id="20_touch_mgr"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kc8bv"]
 size = Vector2(78, 87)
@@ -115,18 +115,12 @@ animations = [{
 
 [node name="Main" type="Node2D"]
 
-[node name="Earth2" parent="." instance=ExtResource("3_u5sff")]
-z_index = 2
-position = Vector2(1545, 2048)
+[node name="World" type="Node2D" parent="."]
 
-[node name="Sprite2D" type="Sprite2D" parent="Earth2"]
-z_index = 2
-texture = ExtResource("5_planet3")
-
-[node name="BackgroundLayer" type="CanvasLayer" parent="."]
+[node name="BackgroundLayer" type="CanvasLayer" parent="World"]
 layer = -1
 
-[node name="TextureRect" type="TextureRect" parent="BackgroundLayer"]
+[node name="TextureRect" type="TextureRect" parent="World/BackgroundLayer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -135,40 +129,59 @@ grow_vertical = 2
 texture = ExtResource("9_bg")
 stretch_mode = 1
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="World"]
 position = Vector2(0, -1)
 script = ExtResource("4_camera")
 
-[node name="OrbitVisualization" type="Node2D" parent="."]
+[node name="OrbitVisualization" type="Node2D" parent="World"]
 script = ExtResource("3_orbit_vis")
 
-[node name="Earth" parent="." instance=ExtResource("3_u5sff")]
+[node name="Planets" type="Node2D" parent="."]
+
+[node name="Planet1" parent="Planets" instance=ExtResource("3_u5sff")]
 z_index = 1
 position = Vector2(1059, 609)
 
-[node name="Sprite2D" type="Sprite2D" parent="Earth"]
+[node name="Sprite2D" type="Sprite2D" parent="Planets/Planet1"]
 z_index = 1
 texture = ExtResource("5_683ew")
 
-[node name="OrbitingBody" type="CharacterBody2D" parent="."]
+[node name="Planet2" parent="Planets" instance=ExtResource("3_u5sff")]
+z_index = 2
+position = Vector2(1545, 2048)
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/Planet2"]
+z_index = 2
+texture = ExtResource("5_planet3")
+
+[node name="Planet3" parent="Planets" instance=ExtResource("3_u5sff")]
+z_index = 2
+position = Vector2(3801, 2118)
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/Planet3"]
+texture = ExtResource("6_planet1")
+
+[node name="Player" type="Node2D" parent="."]
+
+[node name="Ship" type="CharacterBody2D" parent="Player"]
 position = Vector2(301, 300)
 script = ExtResource("2_eevcs")
 thrust_force = 30.0
 mass = 1000.0
 max_fuel = 750.0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="OrbitingBody"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Ship"]
 position = Vector2(0, -1.5)
 shape = SubResource("RectangleShape2D_kc8bv")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="OrbitingBody"]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Player/Ship"]
 texture_filter = 1
 position = Vector2(1533.9999, 1843)
 scale = Vector2(2.818299, 2.811)
 sprite_frames = SubResource("SpriteFrames_074og")
 offset = Vector2(-544, -656)
 
-[node name="EngineAnimatedSprite" type="AnimatedSprite2D" parent="OrbitingBody"]
+[node name="EngineAnimatedSprite" type="AnimatedSprite2D" parent="Player/Ship"]
 texture_filter = 1
 position = Vector2(9.059906e-06, 79.00001)
 scale = Vector2(2.2500005, 2.2500005)
@@ -176,23 +189,18 @@ sprite_frames = SubResource("SpriteFrames_getpj")
 autoplay = "default"
 frame_progress = 0.33379754
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="UI" type="Node" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="UI"]
 script = ExtResource("8_hud")
 
-[node name="Earth3" parent="." instance=ExtResource("3_u5sff")]
-z_index = 2
-position = Vector2(3801, 2118)
-
-[node name="Sprite2D" type="Sprite2D" parent="Earth3"]
-texture = ExtResource("6_planet1")
-
-[node name="GameManager" type="CanvasLayer" parent="."]
+[node name="GameManager" type="CanvasLayer" parent="UI"]
 script = ExtResource("10_game_mgr")
 
-[node name="TouchControls" type="CanvasLayer" parent="."]
+[node name="TouchControls" type="CanvasLayer" parent="UI"]
 script = ExtResource("20_touch_mgr")
 
-[node name="TouchControlContainer" type="Control" parent="TouchControls"]
+[node name="TouchControlContainer" type="Control" parent="UI/TouchControls"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -201,7 +209,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="LeftRotateButton" type="TextureButton" parent="TouchControls/TouchControlContainer"]
+[node name="LeftRotateButton" type="TextureButton" parent="UI/TouchControls/TouchControlContainer"]
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
@@ -217,7 +225,7 @@ ignore_texture_size = true
 stretch_mode = 0
 script = ExtResource("14_touch_btn")
 
-[node name="RightRotateButton" type="TextureButton" parent="TouchControls/TouchControlContainer"]
+[node name="RightRotateButton" type="TextureButton" parent="UI/TouchControls/TouchControlContainer"]
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
@@ -234,7 +242,7 @@ stretch_mode = 0
 script = ExtResource("14_touch_btn")
 action_name = "rotate_right"
 
-[node name="ThrustButton" type="TextureButton" parent="TouchControls/TouchControlContainer"]
+[node name="ThrustButton" type="TextureButton" parent="UI/TouchControls/TouchControlContainer"]
 layout_mode = 1
 anchors_preset = 3
 anchor_left = 1.0
@@ -254,7 +262,7 @@ stretch_mode = 0
 script = ExtResource("14_touch_btn")
 action_name = "thrust"
 
-[node name="ResetButton" type="TextureButton" parent="TouchControls/TouchControlContainer"]
+[node name="ResetButton" type="TextureButton" parent="UI/TouchControls/TouchControlContainer"]
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
@@ -269,7 +277,7 @@ ignore_texture_size = true
 stretch_mode = 0
 script = ExtResource("17_reset_btn")
 
-[node name="ProgradeButton" type="TextureButton" parent="TouchControls/TouchControlContainer"]
+[node name="ProgradeButton" type="TextureButton" parent="UI/TouchControls/TouchControlContainer"]
 layout_mode = 1
 anchors_preset = 3
 anchor_left = 1.0
@@ -287,7 +295,7 @@ ignore_texture_size = true
 stretch_mode = 0
 script = ExtResource("19_toggle_btn")
 
-[node name="RetrogradeButton" type="TextureButton" parent="TouchControls/TouchControlContainer"]
+[node name="RetrogradeButton" type="TextureButton" parent="UI/TouchControls/TouchControlContainer"]
 layout_mode = 1
 anchors_preset = 3
 anchor_left = 1.0
