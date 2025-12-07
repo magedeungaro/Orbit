@@ -30,3 +30,9 @@ signal camera_zoom_changed(zoom_level: float)
 signal touch_controls_changed(enabled: bool)
 signal settings_saved
 signal settings_loaded
+
+# Level events
+signal level_changed(level_id: int)
+signal level_completed(level_id: int, fuel_remaining: float)
+signal level_unlocked(level_id: int)
+signal level_loaded(level_id: int)

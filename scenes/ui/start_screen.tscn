@@ -72,8 +72,24 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "START GAME"
 
+[node name="LevelSelectButton" type="Button" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(250, 55)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "SELECT LEVEL"
+
 [node name="OptionsButton" type="Button" parent="CenterContainer/VBoxContainer"]
 custom_minimum_size = Vector2(250, 55)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "OPTIONS"
+
+[node name="Spacer3" type="Control" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="QuitButton" type="Button" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(250, 55)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "QUIT GAME"

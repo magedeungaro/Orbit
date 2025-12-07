@@ -168,7 +168,6 @@ position = Vector2(301, 300)
 script = ExtResource("2_eevcs")
 thrust_force = 30.0
 mass = 1000.0
-max_fuel = 200.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Ship"]
 position = Vector2(0, -1.5)
