@@ -108,6 +108,18 @@ func handle_thrust_input(delta: float) -> void:
 	if Input.is_action_just_pressed("toggle_retrograde"):
 		toggle_retrograde_lock()
 	
+	# Gamepad toggle orientation: cycles None -> Prograde -> Retrograde -> None
+	if Input.is_action_just_pressed("toggle_orientation"):
+		match orientation_lock:
+			OrientationLock.NONE:
+				toggle_prograde_lock()
+			OrientationLock.PROGRADE:
+				orientation_lock = OrientationLock.RETROGRADE
+				orientation_lock_changed.emit(orientation_lock)
+			OrientationLock.RETROGRADE:
+				orientation_lock = OrientationLock.NONE
+				orientation_lock_changed.emit(orientation_lock)
+	
 	var is_manually_rotating = Input.is_action_pressed("ui_left") or Input.is_action_pressed("rotate_left") or Input.is_action_pressed("ui_right") or Input.is_action_pressed("rotate_right")
 	if is_manually_rotating and orientation_lock != OrientationLock.NONE:
 		orientation_lock = OrientationLock.NONE
@@ -126,7 +138,7 @@ func handle_thrust_input(delta: float) -> void:
 	while thrust_angle >= 360:
 		thrust_angle -= 360
 	
-	var is_thrusting = (Input.is_action_pressed("ui_select") or Input.is_action_pressed("thrust")) and current_fuel > 0 and not is_exploding
+	var is_thrusting = Input.is_action_pressed("thrust") and current_fuel > 0 and not is_exploding
 	
 	if has_node("EngineAnimatedSprite"):
 		get_node("EngineAnimatedSprite").visible = is_thrusting

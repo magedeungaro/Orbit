@@ -245,24 +245,50 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey and event.pressed):
+	# Handle restart action
+	if Input.is_action_just_pressed("restart"):
+		if current_state == GameState.PLAYING:
+			restart_game()
 		return
 	
-	match event.keycode:
-		KEY_R:
-			if current_state == GameState.PLAYING:
-				restart_game()
-		KEY_ESCAPE:
-			if options_screen.visible:
-				_on_back_pressed()
-			elif level_select_screen.visible:
-				_on_level_select_back_pressed()
-			elif current_state == GameState.PAUSED:
-				_on_resume_pressed()
-			elif current_state == GameState.PLAYING:
-				show_pause_screen()
-			elif current_state in [GameState.GAME_OVER, GameState.GAME_WON, GameState.CRASHED]:
-				show_start_screen()
+	# Handle pause action (Start button)
+	if Input.is_action_just_pressed("pause"):
+		if options_screen.visible:
+			_on_back_pressed()
+		elif level_select_screen.visible:
+			_on_level_select_back_pressed()
+		elif current_state == GameState.PAUSED:
+			_on_resume_pressed()
+		elif current_state == GameState.PLAYING:
+			show_pause_screen()
+		elif current_state in [GameState.GAME_OVER, GameState.GAME_WON, GameState.CRASHED]:
+			show_start_screen()
+		return
+	
+	# Handle cancel/back action (East button / B on Xbox)
+	if Input.is_action_just_pressed("ui_cancel"):
+		if options_screen.visible:
+			_on_back_pressed()
+		elif level_select_screen.visible:
+			_on_level_select_back_pressed()
+		elif current_state == GameState.PAUSED:
+			_on_resume_pressed()
+		return
+	
+	# Legacy keyboard support for ESC key
+	if event is InputEventKey and event.pressed:
+		match event.keycode:
+			KEY_ESCAPE:
+				if options_screen.visible:
+					_on_back_pressed()
+				elif level_select_screen.visible:
+					_on_level_select_back_pressed()
+				elif current_state == GameState.PAUSED:
+					_on_resume_pressed()
+				elif current_state == GameState.PLAYING:
+					show_pause_screen()
+				elif current_state in [GameState.GAME_OVER, GameState.GAME_WON, GameState.CRASHED]:
+					show_start_screen()
 
 
 func _hide_all_screens() -> void:
