@@ -57,3 +57,15 @@ custom_minimum_size = Vector2(250, 55)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "TRY AGAIN"
+
+[node name="SelectLevelButton" type="Button" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(250, 55)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "SELECT LEVEL"
+
+[node name="QuitToMenuButton" type="Button" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(250, 55)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "QUIT TO MENU"

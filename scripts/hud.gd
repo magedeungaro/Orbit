@@ -14,15 +14,16 @@ var audiowide_font: Font
 
 func _ready() -> void:
 	audiowide_font = load("res://Assets/fonts/Audiowide/Audiowide-Regular.ttf")
-	
-	orbiting_body = get_tree().root.find_child("Ship", true, false)
-	if orbiting_body == null:
-		return
-	
-	target_body = orbiting_body.target_body
-	camera = get_tree().root.find_child("Camera2D", true, false)
-	
 	_create_ui()
+
+
+## Update the ship reference (called when ship is replaced)
+func set_ship(ship: CharacterBody2D) -> void:
+	orbiting_body = ship
+	if orbiting_body:
+		target_body = orbiting_body.target_body
+	else:
+		target_body = null
 
 
 func _create_ui() -> void:
@@ -95,7 +96,7 @@ func _create_ui() -> void:
 
 
 func _process(_delta: float) -> void:
-	if orbiting_body == null:
+	if orbiting_body == null or fuel_label == null:
 		return
 	
 	var fuel_percent = orbiting_body.get_fuel_percentage()
@@ -114,13 +115,11 @@ func _process(_delta: float) -> void:
 	var current_speed = orbiting_body.velocity.length()
 	speed_label.text = "Speed: %.1f" % current_speed
 	
-	var escape_vel = orbiting_body.calculate_current_escape_velocity()
-	var escape_percentage = (current_speed / escape_vel * 100.0) if escape_vel > 0 else 0.0
 	var thrust_angle = orbiting_body.thrust_angle
 	var orientation_mode = orbiting_body.get_orientation_lock_name()
 	
-	info_label.text = "Escape V: %.1f (%.0f%%)\nThrust Angle: %.0f°\nOrientation: %s" % [
-		escape_vel, escape_percentage, thrust_angle, orientation_mode
+	info_label.text = "Thrust Angle: %.0f°\nOrientation: %s" % [
+		thrust_angle, orientation_mode
 	]
 	
 	if target_body == null and orbiting_body.target_body != null:

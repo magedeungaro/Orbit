@@ -14,8 +14,12 @@ var initial_zoom: float = 0.0
 
 
 func _ready() -> void:
-	orbiting_body = get_tree().root.find_child("Ship", true, false)
 	zoom = Vector2(zoom_level, zoom_level)
+
+
+## Update the target to follow (called when ship is replaced)
+func set_follow_target(target: CharacterBody2D) -> void:
+	orbiting_body = target
 
 
 func _process(delta: float) -> void:

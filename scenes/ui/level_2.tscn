@@ -1,0 +1,64 @@
+[gd_scene load_steps=10 format=3 uid="uid://bb6uy880c3udr"]
+
+[ext_resource type="Script" uid="uid://csvg6f6vuqqfe" path="res://scripts/level_config.gd" id="1_config"]
+[ext_resource type="Script" uid="uid://0baglt5002m1" path="res://scripts/central_body.gd" id="2_planet"]
+[ext_resource type="Texture2D" uid="uid://bvev41whwp4ii" path="res://Assets/Sprites/Planet 1.PNG" id="3_tex1"]
+[ext_resource type="Texture2D" uid="uid://fyxnlyles8s2" path="res://Assets/Sprites/Planet 2.PNG" id="4_tex2"]
+[ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="5_tex3"]
+[ext_resource type="PackedScene" path="res://scenes/prefabs/ship.tscn" id="6_ship"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_planet1"]
+radius = 156.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_planet2"]
+radius = 156.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_target"]
+radius = 156.0
+
+[node name="Level2" type="Node2D"]
+script = ExtResource("1_config")
+level_id = 2
+level_name = "Gravity Assist"
+description = "Use planetary gravity to reach your destination"
+max_fuel = 800.0
+
+[node name="Player" type="Node2D" parent="."]
+
+[node name="Ship" parent="Player" instance=ExtResource("6_ship")]
+position = Vector2(502, 769)
+
+[node name="Planets" type="Node2D" parent="."]
+
+[node name="Planet1" type="CharacterBody2D" parent="Planets"]
+position = Vector2(1312, 768)
+script = ExtResource("2_planet")
+mass = 25.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Planet1"]
+shape = SubResource("CircleShape2D_planet1")
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/Planet1"]
+texture = ExtResource("3_tex1")
+
+[node name="Planet2" type="CharacterBody2D" parent="Planets"]
+position = Vector2(2312, 1568)
+script = ExtResource("2_planet")
+mass = 30.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Planet2"]
+shape = SubResource("CircleShape2D_planet2")
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/Planet2"]
+texture = ExtResource("4_tex2")
+
+[node name="TargetPlanet" type="CharacterBody2D" parent="Planets"]
+position = Vector2(3512, 1168)
+script = ExtResource("2_planet")
+is_target = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/TargetPlanet"]
+shape = SubResource("CircleShape2D_target")
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/TargetPlanet"]
+texture = ExtResource("5_tex3")
