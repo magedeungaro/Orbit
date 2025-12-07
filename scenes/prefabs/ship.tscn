@@ -1,0 +1,119 @@
+[gd_scene load_steps=12 format=3 uid="uid://ship_prefab_scene"]
+
+[ext_resource type="Script" uid="uid://bwh1penr54ifo" path="res://scripts/orbiting_body.gd" id="1_ship"]
+[ext_resource type="Texture2D" uid="uid://sfjq0xncsu0a" path="res://Assets/Sprites/Ship.PNG" id="2_ship_tex"]
+[ext_resource type="Texture2D" uid="uid://djr7bg0t0hmgn" path="res://Assets/Sprites/explosion.png" id="3_explosion"]
+[ext_resource type="Texture2D" uid="uid://d37d55a3m42u3" path="res://Assets/Sprites/engine.png" id="4_engine"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ship"]
+size = Vector2(78, 87)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_exp1"]
+atlas = ExtResource("3_explosion")
+region = Rect2(0, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_exp2"]
+atlas = ExtResource("3_explosion")
+region = Rect2(48, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_exp3"]
+atlas = ExtResource("3_explosion")
+region = Rect2(96, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_exp4"]
+atlas = ExtResource("3_explosion")
+region = Rect2(144, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_exp5"]
+atlas = ExtResource("3_explosion")
+region = Rect2(192, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_exp6"]
+atlas = ExtResource("3_explosion")
+region = Rect2(240, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_exp7"]
+atlas = ExtResource("3_explosion")
+region = Rect2(288, 0, 48, 48)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_ship"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_ship_tex")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_exp1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_exp2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_exp3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_exp4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_exp5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_exp6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_exp7")
+}],
+"loop": false,
+"name": &"exploding",
+"speed": 7.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eng1"]
+atlas = ExtResource("4_engine")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eng2"]
+atlas = ExtResource("4_engine")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_engine"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_eng1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_eng2")
+}],
+"loop": true,
+"name": &"default",
+"speed": 8.0
+}]
+
+[node name="Ship" type="CharacterBody2D"]
+script = ExtResource("1_ship")
+thrust_force = 30.0
+mass = 1000.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -1.5)
+shape = SubResource("RectangleShape2D_ship")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+position = Vector2(1534, 1843)
+scale = Vector2(2.818299, 2.811)
+sprite_frames = SubResource("SpriteFrames_ship")
+offset = Vector2(-544, -656)
+
+[node name="EngineAnimatedSprite" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, 79)
+scale = Vector2(2.25, 2.25)
+sprite_frames = SubResource("SpriteFrames_engine")
+autoplay = "default"

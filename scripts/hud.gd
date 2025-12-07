@@ -14,15 +14,16 @@ var audiowide_font: Font
 
 func _ready() -> void:
 	audiowide_font = load("res://Assets/fonts/Audiowide/Audiowide-Regular.ttf")
-	
-	orbiting_body = get_tree().root.find_child("Ship", true, false)
-	if orbiting_body == null:
-		return
-	
-	target_body = orbiting_body.target_body
-	camera = get_tree().root.find_child("Camera2D", true, false)
-	
 	_create_ui()
+
+
+## Update the ship reference (called when ship is replaced)
+func set_ship(ship: CharacterBody2D) -> void:
+	orbiting_body = ship
+	if orbiting_body:
+		target_body = orbiting_body.target_body
+	else:
+		target_body = null
 
 
 func _create_ui() -> void:
@@ -95,7 +96,7 @@ func _create_ui() -> void:
 
 
 func _process(_delta: float) -> void:
-	if orbiting_body == null:
+	if orbiting_body == null or fuel_label == null:
 		return
 	
 	var fuel_percent = orbiting_body.get_fuel_percentage()

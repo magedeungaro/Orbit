@@ -4,7 +4,12 @@ var orbiting_body: CharacterBody2D
 
 
 func _ready() -> void:
-	orbiting_body = get_tree().root.find_child("Ship", true, false)
+	pass
+
+
+## Update the ship reference (called when ship is replaced)
+func set_ship(ship: CharacterBody2D) -> void:
+	orbiting_body = ship
 
 
 func _process(_delta: float) -> void:

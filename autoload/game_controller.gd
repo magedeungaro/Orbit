@@ -1,4 +1,6 @@
-extends CanvasLayer
+extends Node
+## Game Controller Singleton - Manages game state, UI, and level loading
+## This is an autoload that persists across scene changes
 
 enum GameState { START_SCREEN, PLAYING, PAUSED, GAME_OVER, GAME_WON, CRASHED, LEVEL_SELECT }
 
@@ -9,17 +11,26 @@ const CrashScreenScene = preload("res://scenes/ui/crash_screen.tscn")
 const OptionsScreenScene = preload("res://scenes/ui/options_screen.tscn")
 const LevelSelectScreenScene = preload("res://scenes/ui/level_select_screen.tscn")
 const PauseScreenScene = preload("res://scenes/ui/pause_screen.tscn")
+const HUDScript = preload("res://scripts/hud.gd")
+const TouchControlsScene = preload("res://scenes/ui/touch_controls.tscn")
 const AudiowideFont = preload("res://Assets/fonts/Audiowide/Audiowide-Regular.ttf")
 
 var current_state: GameState = GameState.START_SCREEN
-var orbiting_body: CharacterBody2D
-var touch_controls_manager: Node
-var planets_container: Node2D
-var current_level_instance: Node2D = null
-var camera: Camera2D
-var hud: CanvasLayer
-var orbit_visualization: Node2D
 
+# References to current level components (found after level loads)
+var current_level_root: Node2D = null
+var orbiting_body: CharacterBody2D = null
+var camera: Camera2D = null
+var orbit_visualization: Node2D = null
+
+# Persistent HUD and TouchControls (owned by GameController)
+var hud: CanvasLayer = null
+var touch_controls_manager: CanvasLayer = null
+
+# UI layer for screens
+var ui_layer: CanvasLayer
+
+# UI Screens
 var start_screen: Control
 var game_over_screen: Control
 var game_won_screen: Control
@@ -28,6 +39,7 @@ var options_screen: Control
 var level_select_screen: Control
 var pause_screen: Control
 
+# Buttons
 var start_button: Button
 var options_button: Button
 var level_select_button: Button
@@ -50,34 +62,39 @@ var quit_to_desktop_button: Button
 # Track where options was opened from
 var _options_opened_from_pause: bool = false
 
-# Player container in main scene (to hold the ship from level scenes)
-var player_container: Node2D
 # Store initial ship position for restart
 var _ship_start_position: Vector2
 var _ship_start_velocity: Vector2
 
 
 func _ready() -> void:
-	layer = 100
-	process_mode = Node.PROCESS_MODE_ALWAYS  # Allow processing while paused
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	
-	orbiting_body = get_tree().root.find_child("Ship", true, false)
-	touch_controls_manager = get_tree().root.find_child("TouchControls", true, false)
-	planets_container = get_tree().root.find_child("Planets", true, false)
-	player_container = get_tree().root.find_child("Player", true, false)
-	camera = get_tree().root.find_child("Camera2D", true, false)
-	hud = get_tree().root.find_child("HUD", true, false)
-	orbit_visualization = get_tree().root.find_child("OrbitVisualization", true, false)
+	# Create UI layer for screens
+	ui_layer = CanvasLayer.new()
+	ui_layer.layer = 100
+	add_child(ui_layer)
+	
+	# Create persistent HUD (layer 10, below UI screens)
+	hud = CanvasLayer.new()
+	hud.layer = 10
+	hud.set_script(HUDScript)
+	add_child(hud)
+	
+	# Create persistent TouchControls (layer 11)
+	touch_controls_manager = TouchControlsScene.instantiate()
+	touch_controls_manager.layer = 11
+	add_child(touch_controls_manager)
 	
 	_setup_ui_screens()
-	_connect_signals()
 	
-	show_start_screen()
+	# Defer show_start_screen to ensure all autoloads are ready
+	call_deferred("show_start_screen")
 
 
 func _setup_ui_screens() -> void:
 	start_screen = StartScreenScene.instantiate()
-	add_child(start_screen)
+	ui_layer.add_child(start_screen)
 	start_button = start_screen.get_node("CenterContainer/VBoxContainer/StartButton")
 	level_select_button = start_screen.get_node("CenterContainer/VBoxContainer/LevelSelectButton")
 	options_button = start_screen.get_node("CenterContainer/VBoxContainer/OptionsButton")
@@ -90,26 +107,26 @@ func _setup_ui_screens() -> void:
 	
 	game_over_screen = GameOverScreenScene.instantiate()
 	game_over_screen.visible = false
-	add_child(game_over_screen)
+	ui_layer.add_child(game_over_screen)
 	restart_button = game_over_screen.get_node("CenterContainer/VBoxContainer/RestartButton")
 	restart_button.pressed.connect(_on_restart_pressed)
 	
 	game_won_screen = GameWonScreenScene.instantiate()
 	game_won_screen.visible = false
-	add_child(game_won_screen)
+	ui_layer.add_child(game_won_screen)
 	play_again_button = game_won_screen.get_node("CenterContainer/VBoxContainer/PlayAgainButton")
 	play_again_button.pressed.connect(_on_restart_pressed)
 	_setup_next_level_button()
 	
 	crash_screen = CrashScreenScene.instantiate()
 	crash_screen.visible = false
-	add_child(crash_screen)
+	ui_layer.add_child(crash_screen)
 	crash_restart_button = crash_screen.get_node("CenterContainer/VBoxContainer/RestartButton")
 	crash_restart_button.pressed.connect(_on_restart_pressed)
 	
 	options_screen = OptionsScreenScene.instantiate()
 	options_screen.visible = false
-	add_child(options_screen)
+	ui_layer.add_child(options_screen)
 	touch_controls_button = options_screen.get_node("CenterContainer/VBoxContainer/TouchControlsButton")
 	back_button = options_screen.get_node("CenterContainer/VBoxContainer/BackButton")
 	touch_controls_button.pressed.connect(_on_touch_controls_pressed)
@@ -123,7 +140,7 @@ func _setup_ui_screens() -> void:
 func _setup_pause_screen() -> void:
 	pause_screen = PauseScreenScene.instantiate()
 	pause_screen.visible = false
-	add_child(pause_screen)
+	ui_layer.add_child(pause_screen)
 	
 	resume_button = pause_screen.get_node("CenterContainer/VBoxContainer/ResumeButton")
 	pause_options_button = pause_screen.get_node("CenterContainer/VBoxContainer/OptionsButton")
@@ -168,7 +185,7 @@ func _setup_focus_neighbors_four(button1: Button, button2: Button, button3: Butt
 func _setup_level_select_screen() -> void:
 	level_select_screen = LevelSelectScreenScene.instantiate()
 	level_select_screen.visible = false
-	add_child(level_select_screen)
+	ui_layer.add_child(level_select_screen)
 	
 	level_select_back_button = level_select_screen.get_node("CenterContainer/VBoxContainer/BackButton")
 	level_select_back_button.pressed.connect(_on_level_select_back_pressed)
@@ -186,7 +203,6 @@ func _setup_next_level_button() -> void:
 	next_level_button.text = "NEXT LEVEL"
 	next_level_button.pressed.connect(_on_next_level_pressed)
 	
-	# Insert before PlayAgainButton
 	var play_again_index = play_again_button.get_index()
 	vbox.add_child(next_level_button)
 	vbox.move_child(next_level_button, play_again_index)
@@ -195,7 +211,6 @@ func _setup_next_level_button() -> void:
 func _populate_level_buttons() -> void:
 	var container = level_select_screen.get_node("CenterContainer/VBoxContainer/LevelButtonsContainer")
 	
-	# Clear existing buttons
 	for child in container.get_children():
 		child.queue_free()
 	level_buttons.clear()
@@ -229,7 +244,6 @@ func _populate_level_buttons() -> void:
 		container.add_child(btn)
 		level_buttons.append(btn)
 	
-	# Setup focus navigation for level buttons
 	for i in range(level_buttons.size()):
 		var btn = level_buttons[i]
 		if i > 0:
@@ -247,16 +261,11 @@ func _populate_level_buttons() -> void:
 		level_select_back_button.focus_neighbor_bottom = level_buttons[0].get_path()
 
 
-func _connect_signals() -> void:
-	if orbiting_body and orbiting_body.has_signal("ship_exploded"):
-		# Disconnect first to avoid duplicate connections
-		if orbiting_body.ship_exploded.is_connected(_on_ship_exploded):
-			orbiting_body.ship_exploded.disconnect(_on_ship_exploded)
-		orbiting_body.ship_exploded.connect(_on_ship_exploded)
-
-
 func _process(_delta: float) -> void:
 	if current_state != GameState.PLAYING or orbiting_body == null:
+		return
+	
+	if not is_instance_valid(orbiting_body):
 		return
 	
 	if orbiting_body.is_ship_exploded():
@@ -268,13 +277,11 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Handle restart action
 	if Input.is_action_just_pressed("restart"):
 		if current_state == GameState.PLAYING:
 			restart_game()
 		return
 	
-	# Handle pause action (Start button)
 	if Input.is_action_just_pressed("pause"):
 		if options_screen.visible:
 			_on_back_pressed()
@@ -288,7 +295,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			show_start_screen()
 		return
 	
-	# Handle cancel/back action (East button / B on Xbox)
 	if Input.is_action_just_pressed("ui_cancel"):
 		if options_screen.visible:
 			_on_back_pressed()
@@ -298,7 +304,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			_on_resume_pressed()
 		return
 	
-	# Legacy keyboard support for ESC key
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
@@ -331,8 +336,18 @@ func show_start_screen() -> void:
 	start_screen.visible = true
 	start_button.grab_focus()
 	
-	if orbiting_body:
-		orbiting_body.set_physics_process(false)
+	# Hide HUD and touch controls on menu
+	if hud:
+		hud.visible = false
+	if touch_controls_manager:
+		touch_controls_manager.visible = false
+	
+	# Reset to level 1 when returning to main menu
+	if LevelManager:
+		LevelManager.current_level_id = 1
+	
+	# Load level 1 as menu background
+	_load_menu_background()
 
 
 func show_game_over() -> void:
@@ -351,18 +366,16 @@ func show_game_won() -> void:
 	game_won_screen.visible = true
 	
 	var fuel_percent := 0.0
-	if orbiting_body:
+	if orbiting_body and is_instance_valid(orbiting_body):
 		fuel_percent = orbiting_body.get_fuel_percentage()
 	
 	var stats_label = game_won_screen.get_node("CenterContainer/VBoxContainer/StatsLabel")
 	if stats_label and orbiting_body:
 		stats_label.text = "Fuel remaining: %.1f%%" % fuel_percent
 	
-	# Complete level and handle progression
 	if LevelManager:
 		LevelManager.complete_level(fuel_percent)
 		
-		# Show/hide next level button based on availability
 		if next_level_button:
 			next_level_button.visible = LevelManager.has_next_level()
 			if next_level_button.visible:
@@ -371,9 +384,6 @@ func show_game_won() -> void:
 				play_again_button.grab_focus()
 	else:
 		play_again_button.grab_focus()
-	
-	if orbiting_body:
-		orbiting_body.set_physics_process(false)
 	
 	if Events:
 		Events.game_won.emit()
@@ -384,9 +394,6 @@ func show_crash_screen() -> void:
 	_hide_all_screens()
 	crash_screen.visible = true
 	crash_restart_button.grab_focus()
-	
-	if orbiting_body:
-		orbiting_body.set_physics_process(false)
 
 
 func show_pause_screen() -> void:
@@ -420,23 +427,66 @@ func show_level_select_screen() -> void:
 	current_state = GameState.LEVEL_SELECT
 	_hide_all_screens()
 	level_select_screen.visible = true
-	_populate_level_buttons()  # Refresh level buttons
+	_populate_level_buttons()
 	
-	# Focus first unlocked button
 	for btn in level_buttons:
 		if not btn.disabled:
 			btn.grab_focus()
 			break
 
 
+func _unload_current_level() -> void:
+	if current_level_root and is_instance_valid(current_level_root):
+		current_level_root.queue_free()
+	current_level_root = null
+	orbiting_body = null
+	camera = null
+	orbit_visualization = null
+
+
+func _load_menu_background() -> void:
+	# Unload any existing level first
+	_unload_current_level()
+	
+	# Load level 1 as the menu background
+	var level_scene_path = "res://scenes/levels/level_1.tscn"
+	var level_scene = load(level_scene_path)
+	if not level_scene:
+		return
+	
+	current_level_root = level_scene.instantiate()
+	get_tree().root.add_child(current_level_root)
+	
+	# Find and disable the ship (hide it, disable physics)
+	var player_node = current_level_root.get_node_or_null("Player")
+	if player_node:
+		var ship = player_node.get_node_or_null("Ship")
+		if ship:
+			ship.visible = false
+			ship.set_physics_process(false)
+			ship.set_process(false)
+	
+	# Find camera and set it to a nice overview position
+	camera = current_level_root.get_node_or_null("World/Camera2D")
+	if camera:
+		# Position camera to show a nice view of the level
+		camera.global_position = Vector2(1500, 1000)
+		camera.zoom = Vector2(0.4, 0.4)
+		# Disable camera follow
+		camera.set_process(false)
+
+
 func start_game() -> void:
 	get_tree().paused = false
-	load_current_level()
+	_load_current_level()
 	current_state = GameState.PLAYING
 	_hide_all_screens()
 	
-	if orbiting_body:
-		orbiting_body.set_physics_process(true)
+	# Show HUD and touch controls during gameplay
+	if hud:
+		hud.visible = true
+	if touch_controls_manager:
+		touch_controls_manager.visible = true
 	
 	if Events:
 		Events.game_started.emit()
@@ -447,8 +497,11 @@ func resume_game() -> void:
 	current_state = GameState.PLAYING
 	_hide_all_screens()
 	
-	if orbiting_body:
-		orbiting_body.set_physics_process(true)
+	# Ensure HUD and touch controls are visible
+	if hud:
+		hud.visible = true
+	if touch_controls_manager:
+		touch_controls_manager.visible = true
 	
 	if Events:
 		Events.game_resumed.emit()
@@ -456,150 +509,124 @@ func resume_game() -> void:
 
 func restart_game() -> void:
 	get_tree().paused = false
-	load_current_level()
+	_load_current_level()
+	current_state = GameState.PLAYING
+	_hide_all_screens()
 	
-	start_game()
+	# Show HUD and touch controls during gameplay
+	if hud:
+		hud.visible = true
+	if touch_controls_manager:
+		touch_controls_manager.visible = true
 	
 	if Events:
 		Events.game_restarted.emit()
 
 
-func load_current_level() -> void:
+func _load_current_level() -> void:
+	# Unload existing level
+	_unload_current_level()
+	
 	if not LevelManager:
-		_reset_ship_default()
 		return
 	
 	var level_config = LevelManager.get_current_level()
 	if not level_config:
-		_reset_ship_default()
 		return
 	
-	# Clear existing level instance
-	if current_level_instance:
-		current_level_instance.queue_free()
-		current_level_instance = null
+	# Load the level scene as the new current scene
+	var level_scene_path = LevelManager.get_level_scene_path(LevelManager.current_level_id)
+	if level_scene_path.is_empty():
+		return
 	
-	# Clear existing planets container
-	if planets_container:
-		for child in planets_container.get_children():
-			child.queue_free()
+	var level_scene = load(level_scene_path)
+	if not level_scene:
+		return
 	
-	# Clear existing ship from player container
-	if player_container:
-		for child in player_container.get_children():
-			child.queue_free()
+	current_level_root = level_scene.instantiate()
+	get_tree().root.add_child(current_level_root)
 	
-	# Clear orbiting_body reference since the old ship is being freed
-	orbiting_body = null
+	# Find references in the loaded level
+	_find_level_references()
 	
-	# Wait for nodes to be freed
-	await get_tree().process_frame
-	
-	# Load the level scene
-	current_level_instance = LevelManager.load_level_scene(LevelManager.current_level_id)
-	if current_level_instance:
-		# Find and move the Ship from level scene
-		var level_player = current_level_instance.get_node_or_null("Player")
-		if level_player and player_container:
-			var level_ship = level_player.get_node_or_null("Ship")
-			if level_ship:
-				# Store starting position for restarts (use local position since parent is at origin)
-				_ship_start_position = level_ship.position
-				_ship_start_velocity = level_config.ship_start_velocity
-				
-				# Move ship to main scene's player container
-				level_player.remove_child(level_ship)
-				player_container.add_child(level_ship)
-				
-				# Set the position after adding to new parent
-				level_ship.position = _ship_start_position
-				
-				orbiting_body = level_ship
-				
-				# Connect ship signals
-				_connect_signals()
-		
-		# Find and move planets from level scene
-		var level_planets = current_level_instance.get_node_or_null("Planets")
-		if level_planets and planets_container:
-			var planets_to_move: Array[Node] = []
-			for planet in level_planets.get_children():
-				planets_to_move.append(planet)
-			
-			for planet in planets_to_move:
-				level_planets.remove_child(planet)
-				planets_container.add_child(planet)
-		
-		# We don't need the level instance anymore
-		current_level_instance.queue_free()
-		current_level_instance = null
+	# Store starting position for restarts
+	if orbiting_body:
+		_ship_start_position = orbiting_body.global_position
+		_ship_start_velocity = level_config.ship_start_velocity
 	
 	# Initialize ship with level settings
-	if orbiting_body:
-		orbiting_body.current_fuel = level_config.max_fuel
-		orbiting_body.max_fuel = level_config.max_fuel
-		orbiting_body.stable_orbit_time_required = level_config.stable_orbit_time
-		orbiting_body.velocity = _ship_start_velocity
-		orbiting_body.global_position = _ship_start_position
-		orbiting_body.thrust_angle = 0.0
-		orbiting_body.orbit_trail.clear()
-		orbiting_body.time_in_stable_orbit = 0.0
-		orbiting_body.orbit_distance_samples.clear()
-		orbiting_body.total_orbit_angle = 0.0
-		orbiting_body.reset_explosion()
-		
-		# Re-find central bodies and target
-		orbiting_body.central_bodies = _find_all_central_bodies()
-		orbiting_body.target_body = _find_target_planet()
-		
-		# Update camera to follow new ship
-		if camera and camera.has_method("set_follow_target"):
-			camera.set_follow_target(orbiting_body)
-		
-		# Update HUD to track new ship
-		if hud and hud.has_method("set_ship"):
-			hud.set_ship(orbiting_body)
-		
-		# Update orbit visualization to track new ship
-		if orbit_visualization and orbit_visualization.has_method("set_ship"):
-			orbit_visualization.set_ship(orbiting_body)
+	_initialize_ship(level_config)
+	
+	# Connect signals
+	_connect_ship_signals()
 	
 	if Events:
 		Events.level_loaded.emit(level_config.level_id)
 
 
-func _reset_ship_default() -> void:
-	if orbiting_body:
-		orbiting_body.current_fuel = orbiting_body.max_fuel
-		orbiting_body.velocity = Vector2.ZERO
-		orbiting_body.global_position = Vector2(300, 300)
-		orbiting_body.thrust_angle = 0.0
-		orbiting_body.orbit_trail.clear()
-		orbiting_body.time_in_stable_orbit = 0.0
-		orbiting_body.orbit_distance_samples.clear()
-		orbiting_body.total_orbit_angle = 0.0
-		orbiting_body.reset_explosion()
+func _find_level_references() -> void:
+	if not current_level_root:
+		return
+	
+	# Find ship
+	var player_node = current_level_root.get_node_or_null("Player")
+	if player_node:
+		orbiting_body = player_node.get_node_or_null("Ship")
+	
+	# Find other components from level scene
+	camera = current_level_root.get_node_or_null("World/Camera2D")
+	orbit_visualization = current_level_root.get_node_or_null("World/OrbitVisualization")
+	
+	# Find planets and set up ship references
+	var planets_node = current_level_root.get_node_or_null("Planets")
+	if planets_node and orbiting_body:
+		var central_bodies: Array = []
+		var target_body: Node2D = null
+		
+		for planet in planets_node.get_children():
+			central_bodies.append(planet)
+			if "is_target" in planet and planet.is_target:
+				target_body = planet
+		
+		orbiting_body.central_bodies = central_bodies
+		orbiting_body.target_body = target_body
+	
+	# Update HUD with new ship reference
+	if hud and hud.has_method("set_ship"):
+		hud.set_ship(orbiting_body)
+	if hud and camera:
+		hud.camera = camera
+	
+	# Update orbit visualization with new ship reference
+	if orbit_visualization and orbit_visualization.has_method("set_ship"):
+		orbit_visualization.set_ship(orbiting_body)
+	
+	# Update camera with new ship reference
+	if camera and camera.has_method("set_follow_target"):
+		camera.set_follow_target(orbiting_body)
 
 
-func _find_all_central_bodies() -> Array:
-	var result: Array = []
-	if planets_container:
-		for child in planets_container.get_children():
-			if child.get_script() != null:
-				result.append(child)
-	return result
+func _initialize_ship(level_config: LevelConfig) -> void:
+	if not orbiting_body:
+		return
+	
+	orbiting_body.current_fuel = level_config.max_fuel
+	orbiting_body.max_fuel = level_config.max_fuel
+	orbiting_body.stable_orbit_time_required = level_config.stable_orbit_time
+	orbiting_body.velocity = _ship_start_velocity
+	orbiting_body.thrust_angle = 0.0
+	orbiting_body.orbit_trail.clear()
+	orbiting_body.time_in_stable_orbit = 0.0
+	orbiting_body.orbit_distance_samples.clear()
+	orbiting_body.total_orbit_angle = 0.0
+	orbiting_body.reset_explosion()
 
 
-func _find_target_planet() -> Node2D:
-	if planets_container:
-		for child in planets_container.get_children():
-			# Check for is_target property (new Planet script)
-			if "is_target" in child and child.is_target:
-				return child
-			# Fallback: check for legacy name "Earth3" or "TargetPlanet"
-			if child.name == "Earth3" or child.name == "TargetPlanet":
-				return child
-	return null
+func _connect_ship_signals() -> void:
+	if orbiting_body and orbiting_body.has_signal("ship_exploded"):
+		if orbiting_body.ship_exploded.is_connected(_on_ship_exploded):
+			orbiting_body.ship_exploded.disconnect(_on_ship_exploded)
+		orbiting_body.ship_exploded.connect(_on_ship_exploded)
 
 
 func _update_touch_controls_button_text() -> void:

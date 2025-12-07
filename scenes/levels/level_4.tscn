@@ -1,0 +1,92 @@
+[gd_scene load_steps=12 format=3 uid="uid://c4level4scene"]
+
+[ext_resource type="Script" path="res://scripts/level_config.gd" id="1_config"]
+[ext_resource type="Script" path="res://scripts/camera_follow.gd" id="2_camera"]
+[ext_resource type="Script" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
+[ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="4_bg"]
+[ext_resource type="Script" path="res://scripts/central_body.gd" id="5_planet"]
+[ext_resource type="PackedScene" uid="uid://ship_prefab_scene" path="res://scenes/prefabs/ship.tscn" id="6_ship"]
+[ext_resource type="Texture2D" uid="uid://bvev41whwp4ii" path="res://Assets/Sprites/Planet 1.PNG" id="7_tex1"]
+[ext_resource type="Texture2D" uid="uid://fyxnlyles8s2" path="res://Assets/Sprites/Planet 2.PNG" id="8_tex2"]
+[ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="9_tex3"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_planet1"]
+radius = 156.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_planet2"]
+radius = 156.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_target"]
+radius = 156.0
+
+[node name="Level4" type="Node2D"]
+script = ExtResource("1_config")
+level_id = 4
+level_name = "Deep Space"
+description = "A long journey with limited fuel"
+max_fuel = 500.0
+ship_start_velocity = Vector2(0, 0)
+stable_orbit_time = 15.0
+
+[node name="World" type="Node2D" parent="."]
+
+[node name="BackgroundLayer" type="CanvasLayer" parent="World"]
+layer = -1
+
+[node name="TextureRect" type="TextureRect" parent="World/BackgroundLayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("4_bg")
+stretch_mode = 1
+
+[node name="Camera2D" type="Camera2D" parent="World"]
+script = ExtResource("2_camera")
+
+[node name="OrbitVisualization" type="Node2D" parent="World"]
+script = ExtResource("3_orbit_vis")
+
+[node name="Player" type="Node2D" parent="."]
+
+[node name="Ship" parent="Player" instance=ExtResource("6_ship")]
+position = Vector2(100, 100)
+
+[node name="Planets" type="Node2D" parent="."]
+
+[node name="Planet1" type="CharacterBody2D" parent="Planets"]
+position = Vector2(1000, 500)
+script = ExtResource("5_planet")
+mass = 35.0
+is_target = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Planet1"]
+shape = SubResource("CircleShape2D_planet1")
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/Planet1"]
+texture = ExtResource("7_tex1")
+
+[node name="Planet2" type="CharacterBody2D" parent="Planets"]
+position = Vector2(2500, 1800)
+script = ExtResource("5_planet")
+mass = 25.0
+is_target = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Planet2"]
+shape = SubResource("CircleShape2D_planet2")
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/Planet2"]
+texture = ExtResource("8_tex2")
+
+[node name="TargetPlanet" type="CharacterBody2D" parent="Planets"]
+position = Vector2(4500, 3000)
+script = ExtResource("5_planet")
+mass = 20.0
+is_target = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/TargetPlanet"]
+shape = SubResource("CircleShape2D_target")
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/TargetPlanet"]
+texture = ExtResource("9_tex3")

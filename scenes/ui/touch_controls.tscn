@@ -1,0 +1,131 @@
+[gd_scene load_steps=11 format=3 uid="uid://btouchcontrols_scene"]
+
+[ext_resource type="Script" path="res://scripts/touch_controls_manager.gd" id="1_touch_mgr"]
+[ext_resource type="Texture2D" uid="uid://c2s2aw07goloe" path="res://Assets/Sprites/Turn Left.PNG" id="2_left"]
+[ext_resource type="Texture2D" uid="uid://bkdb5pkkjext5" path="res://Assets/Sprites/Turn Right Mobile Touch control.PNG" id="3_right"]
+[ext_resource type="Script" path="res://scripts/touch_rotate_button.gd" id="4_rotate_btn"]
+[ext_resource type="Texture2D" uid="uid://b8poanb6efsb0" path="res://Assets/Sprites/Thrust Mobile Button.PNG" id="5_thrust"]
+[ext_resource type="Texture2D" uid="uid://d0oo3cw8ue2cu" path="res://Assets/Sprites/Reset Button Touch Control.PNG" id="6_reset"]
+[ext_resource type="Script" path="res://scripts/touch_reset_button.gd" id="7_reset_btn"]
+[ext_resource type="Texture2D" uid="uid://bgelqkalese1f" path="res://Assets/Sprites/Prograde Touch Control.PNG" id="8_prograde"]
+[ext_resource type="Script" path="res://scripts/touch_toggle_button.gd" id="9_toggle_btn"]
+
+[node name="TouchControls" type="CanvasLayer"]
+script = ExtResource("1_touch_mgr")
+
+[node name="TouchControlContainer" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="LeftRotateButton" type="TextureButton" parent="TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 28.0
+offset_top = -190.0
+offset_right = 128.0
+offset_bottom = -90.0
+grow_vertical = 0
+scale = Vector2(1.36, 1.36)
+texture_normal = ExtResource("2_left")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("4_rotate_btn")
+
+[node name="RightRotateButton" type="TextureButton" parent="TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 196.0
+offset_top = -190.0
+offset_right = 296.0
+offset_bottom = -90.0
+grow_vertical = 0
+scale = Vector2(1.36, 1.36)
+texture_normal = ExtResource("3_right")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("4_rotate_btn")
+action_name = "rotate_right"
+
+[node name="ThrustButton" type="TextureButton" parent="TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -192.0
+offset_right = -60.0
+offset_bottom = -92.0
+grow_horizontal = 0
+grow_vertical = 0
+scale = Vector2(1.36, 1.36)
+texture_normal = ExtResource("5_thrust")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("4_rotate_btn")
+action_name = "thrust"
+
+[node name="ResetButton" type="TextureButton" parent="TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -88.0
+offset_top = 20.0
+offset_right = -28.0
+offset_bottom = 80.0
+grow_horizontal = 0
+texture_normal = ExtResource("6_reset")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("7_reset_btn")
+
+[node name="ProgradeButton" type="TextureButton" parent="TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -244.0
+offset_top = -162.0
+offset_right = -184.0
+offset_bottom = -102.0
+grow_horizontal = 0
+grow_vertical = 0
+texture_normal = ExtResource("8_prograde")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("9_toggle_btn")
+
+[node name="RetrogradeButton" type="TextureButton" parent="TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -225.0
+offset_top = -82.0
+offset_right = -165.0
+offset_bottom = -22.0
+grow_horizontal = 0
+grow_vertical = 0
+rotation = 3.14159
+pivot_offset = Vector2(30, 30)
+texture_normal = ExtResource("8_prograde")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("9_toggle_btn")
+action_name = "toggle_retrograde"
+active_modulate = Color(1, 0.5, 0.5, 1)

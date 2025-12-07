@@ -1,36 +1,109 @@
 extends Node
 ## Level Manager - Handles level loading, progression, and state
+## Levels are now defined as individual scenes in res://scenes/levels/
 
 const SAVE_PATH := "user://level_progress.save"
+const LEVELS_PATH := "res://scenes/levels/"
 
 var current_level_id: int = 1
 var unlocked_levels: Array[int] = [1]
 var level_best_scores: Dictionary = {}  # level_id -> best fuel remaining percentage
 
-var _levels: Array[LevelData.LevelConfig] = []
+var _level_scenes: Dictionary = {}  # level_id -> scene path
+var _level_configs: Dictionary = {}  # level_id -> LevelConfig data (cached)
 
 
 func _ready() -> void:
-	_levels = LevelData.get_all_levels()
+	_scan_level_scenes()
 	load_progress()
 
 
-## Get all available levels
-func get_all_levels() -> Array[LevelData.LevelConfig]:
-	return _levels
+## Scan the levels folder for level scenes
+func _scan_level_scenes() -> void:
+	_level_scenes.clear()
+	_level_configs.clear()
+	
+	var dir = DirAccess.open(LEVELS_PATH)
+	if dir:
+		dir.list_dir_begin()
+		var file_name = dir.get_next()
+		while file_name != "":
+			if file_name.ends_with(".tscn"):
+				var scene_path = LEVELS_PATH + file_name
+				var config = _load_level_config(scene_path)
+				if config:
+					_level_scenes[config.level_id] = scene_path
+					_level_configs[config.level_id] = config
+			file_name = dir.get_next()
+		dir.list_dir_end()
 
 
-## Get a specific level by ID
-func get_level(level_id: int) -> LevelData.LevelConfig:
-	for level in _levels:
-		if level.id == level_id:
-			return level
+## Load level config from a scene
+func _load_level_config(scene_path: String) -> LevelConfig:
+	var scene = load(scene_path)
+	if not scene:
+		return null
+	
+	var instance = scene.instantiate()
+	if instance and instance is LevelConfig:
+		var config = LevelConfig.new()
+		config.level_id = instance.level_id
+		config.level_name = instance.level_name
+		config.description = instance.description
+		config.ship_start_velocity = instance.ship_start_velocity
+		config.max_fuel = instance.max_fuel
+		config.stable_orbit_time = instance.stable_orbit_time
+		instance.queue_free()
+		return config
+	
+	if instance:
+		instance.queue_free()
 	return null
 
 
+## Get all level IDs sorted
+func get_all_level_ids() -> Array[int]:
+	var ids: Array[int] = []
+	for id in _level_scenes.keys():
+		ids.append(id)
+	ids.sort()
+	return ids
+
+
+## Get level config by ID
+func get_level(level_id: int) -> LevelConfig:
+	if level_id in _level_configs:
+		return _level_configs[level_id]
+	return null
+
+
+## Get the scene path for a level
+func get_level_scene_path(level_id: int) -> String:
+	if level_id in _level_scenes:
+		return _level_scenes[level_id]
+	return ""
+
+
 ## Get the current level configuration
-func get_current_level() -> LevelData.LevelConfig:
+func get_current_level() -> LevelConfig:
 	return get_level(current_level_id)
+
+
+## Get the current level scene path
+func get_current_level_scene_path() -> String:
+	return get_level_scene_path(current_level_id)
+
+
+## Load a level scene instance
+func load_level_scene(level_id: int) -> Node2D:
+	var scene_path = get_level_scene_path(level_id)
+	if scene_path.is_empty():
+		return null
+	
+	var scene = load(scene_path)
+	if scene:
+		return scene.instantiate()
+	return null
 
 
 ## Set the current level
@@ -98,7 +171,7 @@ func advance_to_next_level() -> bool:
 
 ## Get total number of levels
 func get_level_count() -> int:
-	return _levels.size()
+	return _level_scenes.size()
 
 
 ## Save progress to file
