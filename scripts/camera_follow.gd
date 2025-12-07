@@ -4,7 +4,7 @@ extends Camera2D
 @export var zoom_level: float = 0.8
 @export var min_zoom: float = 0.3
 @export var max_zoom: float = 2.0
-@export var zoom_speed: float = 0.1
+@export var zoom_speed: float = 0.3
 @export var pinch_zoom_sensitivity: float = 0.01
 
 var orbiting_body: CharacterBody2D
@@ -26,16 +26,16 @@ func _process(delta: float) -> void:
 	_handle_keyboard_zoom(delta)
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	_handle_mouse_wheel_zoom(event)
 	_handle_pinch_zoom(event)
 
 
 func _handle_keyboard_zoom(delta: float) -> void:
 	if Input.is_action_pressed("zoom_in"):
-		adjust_zoom(zoom_speed * delta * 2.0)
+		adjust_zoom(zoom_speed * delta * 3.0)
 	if Input.is_action_pressed("zoom_out"):
-		adjust_zoom(-zoom_speed * delta * 2.0)
+		adjust_zoom(-zoom_speed * delta * 3.0)
 
 
 func _handle_mouse_wheel_zoom(event: InputEvent) -> void:

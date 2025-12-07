@@ -27,31 +27,31 @@ grow_vertical = 2
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
 layout_mode = 2
-theme_override_constants/separation = 40
+theme_override_constants/separation = 25
 alignment = 1
 
 [node name="Title" type="Label" parent="CenterContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 72
+theme_override_font_sizes/font_size = 56
 text = "ORBITAL MECHANICS"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="CenterContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 22
 text = "Navigate through space using gravity and thrust"
 horizontal_alignment = 1
 
 [node name="Spacer1" type="Control" parent="CenterContainer/VBoxContainer"]
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 15)
 layout_mode = 2
 
 [node name="Instructions" type="Label" parent="CenterContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 18
 text = "Controls:
 LEFT/RIGHT - Rotate ship | SPACE - Thrust
 Z - Prograde Lock | X - Retrograde Lock
@@ -63,17 +63,17 @@ Reach Earth 3 and establish a stable orbit!"
 horizontal_alignment = 1
 
 [node name="Spacer2" type="Control" parent="CenterContainer/VBoxContainer"]
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 15)
 layout_mode = 2
 
 [node name="StartButton" type="Button" parent="CenterContainer/VBoxContainer"]
-custom_minimum_size = Vector2(300, 70)
+custom_minimum_size = Vector2(250, 55)
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 24
 text = "START GAME"
 
 [node name="OptionsButton" type="Button" parent="CenterContainer/VBoxContainer"]
-custom_minimum_size = Vector2(300, 70)
+custom_minimum_size = Vector2(250, 55)
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 24
 text = "OPTIONS"
