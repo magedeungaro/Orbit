@@ -1,9 +1,10 @@
 @tool
-extends CharacterBody2D
+extends Area2D
 class_name Planet
 ## Planet that exerts gravitational pull on the ship.
 ## Configure mass and appearance in the editor.
 ## The gravitational sphere of influence is shown in the editor for level design.
+## Uses Area2D for trigger-based collision detection with the ship.
 
 @export_group("Physics")
 @export var mass: float = 20.0:
@@ -48,6 +49,15 @@ class_name Planet
 
 func _ready() -> void:
 	queue_redraw()
+	# Connect to body_entered signal for collision detection
+	if not Engine.is_editor_hint():
+		body_entered.connect(_on_body_entered)
+
+
+func _on_body_entered(body: Node2D) -> void:
+	# Check if it's the ship (has the orbiting_body script)
+	if body.has_method("trigger_explosion"):
+		body.trigger_explosion(self)
 
 
 func _process(_delta: float) -> void:

@@ -55,7 +55,7 @@ position = Vector2(625, 370)
 
 [node name="Planets" type="Node2D" parent="."]
 
-[node name="Planet1" type="CharacterBody2D" parent="Planets"]
+[node name="Planet1" type="Area2D" parent="Planets"]
 position = Vector2(733, 1280)
 script = ExtResource("5_planet")
 mass = 22.0
@@ -67,7 +67,7 @@ shape = SubResource("CircleShape2D_planet1")
 [node name="Sprite2D" type="Sprite2D" parent="Planets/Planet1"]
 texture = ExtResource("7_tex1")
 
-[node name="Planet2" type="CharacterBody2D" parent="Planets"]
+[node name="Planet2" type="Area2D" parent="Planets"]
 position = Vector2(1333, 980)
 script = ExtResource("5_planet")
 mass = 28.0
@@ -79,7 +79,7 @@ shape = SubResource("CircleShape2D_planet2")
 [node name="Sprite2D" type="Sprite2D" parent="Planets/Planet2"]
 texture = ExtResource("8_tex2")
 
-[node name="TargetPlanet" type="CharacterBody2D" parent="Planets"]
+[node name="TargetPlanet" type="Area2D" parent="Planets"]
 position = Vector2(2133, 2180)
 script = ExtResource("5_planet")
 mass = 18.0

@@ -89,7 +89,7 @@ func _physics_process(delta: float) -> void:
 		queue_redraw()
 		return
 	
-	check_planet_collision()
+	# Planet collision is now handled by Area2D trigger detection
 	handle_thrust_input(delta)
 	apply_gravity_from_all_bodies(delta)
 	rotation = deg_to_rad(thrust_angle - 90)
@@ -201,31 +201,13 @@ func get_orbit_progress() -> float:
 
 
 func check_planet_collision() -> void:
-	var ship_head_offset = 43.5
-	var local_up = Vector2(0, -1)
-	var world_up = local_up.rotated(rotation)
-	var head_position = global_position + world_up * ship_head_offset
-	
-	for body in central_bodies:
-		if body == null:
-			continue
-		
-		var planet_radius = planet_collision_radius
-		if body.has_node("Sprite2D"):
-			var sprite = body.get_node("Sprite2D")
-			if sprite.texture:
-				planet_radius = max(sprite.texture.get_width(), sprite.texture.get_height()) * sprite.scale.x / 2.0
-		
-		if (body.global_position - global_position).length() < (body_radius + planet_radius):
-			trigger_explosion(body)
-			return
-		
-		if (body.global_position - head_position).length() < planet_radius:
-			trigger_explosion(body)
-			return
+	# Planet collision is now handled by Area2D trigger detection in central_body.gd
+	# When the ship's collision shape overlaps a planet's Area2D, 
+	# the planet calls trigger_explosion() on the ship
+	pass
 
 
-func trigger_explosion(collided_planet: Node2D) -> void:
+func trigger_explosion(_collided_planet: Node2D) -> void:
 	is_exploding = true
 	explosion_time = 0.0
 	velocity = Vector2.ZERO
