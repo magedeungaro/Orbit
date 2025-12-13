@@ -345,6 +345,19 @@ func apply_gravity_from_all_bodies(delta: float) -> void:
 		if "orbits_around" in soi_body.orbits_around and soi_body.orbits_around.orbits_around != null:
 			ignored_bodies.append(soi_body.orbits_around.orbits_around)
 	
+	# When inside a moving planet's SOI, make the ship "ride along" with the planet
+	# by applying the same acceleration the planet experiences from its parent
+	# This creates a true two-body problem in the planet's reference frame
+	if soi_body != null and "orbits_around" in soi_body and soi_body.orbits_around != null:
+		var parent_body = soi_body.orbits_around
+		var dir_to_parent = parent_body.global_position - soi_body.global_position
+		var dist_to_parent = dir_to_parent.length()
+		if dist_to_parent > 1.0:
+			var parent_g_const = soi_body.orbital_gravitational_constant if "orbital_gravitational_constant" in soi_body else gravitational_constant
+			var parent_accel = (parent_g_const * parent_body.mass) / (dist_to_parent * dist_to_parent)
+			# Apply same acceleration to ship that planet experiences
+			velocity += dir_to_parent.normalized() * parent_accel * delta
+	
 	for body in central_bodies:
 		if body == null:
 			continue
@@ -722,6 +735,19 @@ func _calculate_nbody_trajectory() -> void:
 				var grandparent_idx = planet_data[parent_idx]["orbits_around_idx"]
 				if grandparent_idx >= 0:
 					ignored_indices.append(grandparent_idx)
+		
+		# When inside a moving planet's SOI, apply the same acceleration the planet gets
+		# This makes the ship "ride along" with the planet (reference frame matching)
+		if sim_soi_idx >= 0:
+			var parent_idx = planet_data[sim_soi_idx]["orbits_around_idx"]
+			if parent_idx >= 0:
+				var soi_pd = planet_data[sim_soi_idx]
+				var parent_pd = planet_data[parent_idx]
+				var dir_to_parent = parent_pd["pos"] - soi_pd["pos"]
+				var dist_to_parent = dir_to_parent.length()
+				if dist_to_parent > 1.0:
+					var parent_accel = (soi_pd["g_const"] * parent_pd["mass"]) / (dist_to_parent * dist_to_parent)
+					sim_vel += dir_to_parent.normalized() * parent_accel * time_step
 		
 		# Apply gravity using same patched conic rules as actual ship
 		var total_accel = Vector2.ZERO
