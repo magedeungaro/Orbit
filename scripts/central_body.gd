@@ -154,9 +154,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _apply_gravity(delta: float) -> void:
-	# Apply gravity ONLY from parent body (two-body problem)
-	# This keeps planetary orbits stable and predictable
-	# The ship handles multi-body gravity with SOI-based attenuation separately
+	# Apply gravity only from parent body (two-body problem for orbital stability)
 	if orbits_around != null:
 		var direction_to_parent = orbits_around.global_position - global_position
 		var distance = direction_to_parent.length()
@@ -164,43 +162,26 @@ func _apply_gravity(delta: float) -> void:
 		if distance > 1.0:
 			var gravitational_acceleration = (orbital_gravitational_constant * orbits_around.mass) / (distance * distance)
 			velocity += direction_to_parent.normalized() * gravitational_acceleration * delta
-	
-	# NOTE: n-body perturbations from other planets are disabled for stability
-	# Each planet only orbits its designated parent, creating predictable orbital paths
-	# The ship experiences all gravitational influences via its own physics system
 
 
 func _draw() -> void:
-	# Only draw in editor when show_soi_in_editor is enabled
-	if not Engine.is_editor_hint():
-		return
-	
-	if not show_soi_in_editor:
+	if not Engine.is_editor_hint() or not show_soi_in_editor:
 		return
 	
 	var soi = _calculate_soi()
 	
-	# Draw gradient SOI visualization - opacity increases with gravity strength (closer = stronger)
-	# Gravity falls off with 1/r², so we use inverse square for opacity
+	# Draw gradient SOI visualization (opacity increases closer to center)
 	var num_rings = 20
 	for i in range(num_rings, 0, -1):
 		var ring_ratio = float(i) / float(num_rings)
 		var ring_radius = soi * ring_ratio
-		
-		# Calculate opacity based on inverse square law (gravity strength)
-		# At the edge (ring_ratio = 1), opacity is minimal
-		# At the center (ring_ratio -> 0), opacity is maximal
-		# Using 1/r² relationship but clamped for visual appeal
 		var gravity_strength = 1.0 / (ring_ratio * ring_ratio) if ring_ratio > 0.1 else 100.0
 		var normalized_strength = clamp(gravity_strength / 100.0, 0.02, 0.4)
-		
 		var ring_color = Color(soi_color.r, soi_color.g, soi_color.b, normalized_strength)
 		draw_circle(Vector2.ZERO, ring_radius, ring_color)
 	
-	# Draw SOI border
 	draw_arc(Vector2.ZERO, soi, 0, TAU, 64, soi_border_color, 2.0)
 	
-	# Draw target indicator if this is the target planet
 	if is_target:
 		var target_color = Color(0.0, 1.0, 0.3, 0.3)
 		var target_border = Color(0.0, 1.0, 0.3, 0.8)
@@ -209,8 +190,6 @@ func _draw() -> void:
 
 
 func _calculate_soi() -> float:
-	# SOI scales with sqrt(G * mass) - reflects how gravity falls off with 1/r²
-	# At distance r where gravitational force equals a threshold, r ∝ sqrt(mass)
 	return soi_multiplier * sqrt(gravitational_constant * mass / 10000.0)
 
 

@@ -692,7 +692,6 @@ func _initialize_ship(level_config: LevelConfig) -> void:
 	# Use ship's own initial_velocity export instead of level config
 	orbiting_body.velocity = orbiting_body.initial_velocity
 	orbiting_body.thrust_angle = 0.0
-	orbiting_body.orbit_trail.clear()
 	orbiting_body.time_in_stable_orbit = 0.0
 	orbiting_body.orbit_distance_samples.clear()
 	orbiting_body.total_orbit_angle = 0.0
