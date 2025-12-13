@@ -154,7 +154,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _apply_gravity(delta: float) -> void:
-	# Apply gravity from parent body (primary gravitational influence)
+	# Apply gravity ONLY from parent body (two-body problem)
+	# This keeps planetary orbits stable and predictable
+	# The ship handles multi-body gravity with SOI-based attenuation separately
 	if orbits_around != null:
 		var direction_to_parent = orbits_around.global_position - global_position
 		var distance = direction_to_parent.length()
@@ -163,20 +165,9 @@ func _apply_gravity(delta: float) -> void:
 			var gravitational_acceleration = (orbital_gravitational_constant * orbits_around.mass) / (distance * distance)
 			velocity += direction_to_parent.normalized() * gravitational_acceleration * delta
 	
-	# Optionally apply gravity from all other massive bodies (n-body simulation)
-	# This creates more realistic but complex orbital dynamics
-	for planet in other_planets:
-		if planet == null or planet == orbits_around:
-			continue
-		
-		var direction_to_planet = planet.global_position - global_position
-		var distance = direction_to_planet.length()
-		
-		# Only apply if within reasonable range and planet has significant mass
-		if distance > 1.0 and planet.mass > 0:
-			var gravitational_acceleration = (orbital_gravitational_constant * planet.mass) / (distance * distance)
-			# Apply a reduced effect for non-primary bodies to maintain stable orbits
-			velocity += direction_to_planet.normalized() * gravitational_acceleration * delta * 0.1
+	# NOTE: n-body perturbations from other planets are disabled for stability
+	# Each planet only orbits its designated parent, creating predictable orbital paths
+	# The ship experiences all gravitational influences via its own physics system
 
 
 func _draw() -> void:

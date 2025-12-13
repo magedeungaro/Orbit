@@ -99,6 +99,7 @@ animations = [{
 script = ExtResource("1_ship")
 thrust_force = 30.0
 mass = 1000.0
+show_trajectory = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, -1.5)
