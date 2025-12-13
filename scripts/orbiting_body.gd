@@ -2,7 +2,7 @@ extends CharacterBody2D
 
 @export var thrust_force: float = 300.0
 @export var gravitational_constant: float = 500000.0
-@export var base_sphere_of_influence: float = 350.0
+@export var soi_multiplier: float = 50.0  ## Multiplier for SOI calculation: SOI = multiplier * sqrt(G * mass)
 @export var proximity_gravity_boost: float = 3.0
 @export var proximity_threshold: float = 150.0
 @export var show_sphere_of_influence: bool = true
@@ -247,10 +247,17 @@ func reset_explosion() -> void:
 		animated_sprite.visible = true
 
 
+## Calculate sphere of influence for a planet based on its mass
+## SOI scales with sqrt(G * mass) - this reflects how gravity falls off with 1/r²
+## At distance r where gravitational force equals a threshold, r ∝ sqrt(mass)
+func calculate_sphere_of_influence_for_body(planet_mass: float) -> float:
+	return soi_multiplier * sqrt(gravitational_constant * planet_mass / 10000.0)
+
+
+## Legacy function - returns a default SOI for backwards compatibility
 func calculate_sphere_of_influence() -> float:
-	var base_gravity = 100000.0
-	var gravity_ratio = gravitational_constant / base_gravity
-	return base_sphere_of_influence * sqrt(gravity_ratio)
+	# Use a reference mass of 20 for default SOI
+	return calculate_sphere_of_influence_for_body(20.0)
 
 
 func apply_gravity_from_all_bodies(delta: float) -> void:
@@ -260,7 +267,9 @@ func apply_gravity_from_all_bodies(delta: float) -> void:
 		
 		var direction_to_center = body.global_position - global_position
 		var distance = direction_to_center.length()
-		var soi = calculate_sphere_of_influence()
+		
+		# Calculate SOI based on this specific planet's mass
+		var soi = calculate_sphere_of_influence_for_body(body.mass)
 		
 		if distance > 1.0 and distance <= soi:
 			var gravitational_acceleration = (gravitational_constant * body.mass) / (distance * distance)
@@ -283,16 +292,51 @@ func calculate_trajectory() -> void:
 	var sim_vel = velocity
 	var time_step = trajectory_prediction_time / trajectory_points
 	
+	# Store simulated planet positions and velocities for moving planets
+	var sim_planet_positions: Dictionary = {}
+	var sim_planet_velocities: Dictionary = {}
+	for body in central_bodies:
+		if body == null:
+			continue
+		sim_planet_positions[body] = body.global_position
+		# Check if planet has velocity (moving planet)
+		if body.has_method("get") and "velocity" in body:
+			sim_planet_velocities[body] = body.velocity
+		else:
+			sim_planet_velocities[body] = Vector2.ZERO
+	
 	predicted_trajectory.append(sim_pos)
 	
 	for i in range(trajectory_points):
+		# First, update simulated planet positions (for moving planets)
+		for body in central_bodies:
+			if body == null:
+				continue
+			var planet_vel = sim_planet_velocities.get(body, Vector2.ZERO)
+			if planet_vel.length() > 0:
+				# Simulate planet orbital motion
+				if body.has_method("get") and "orbits_around" in body and body.orbits_around != null:
+					var parent = body.orbits_around
+					var parent_pos = sim_planet_positions.get(parent, parent.global_position)
+					var direction_to_parent = parent_pos - sim_planet_positions[body]
+					var distance = direction_to_parent.length()
+					if distance > 1.0:
+						var g_const = body.orbital_gravitational_constant if "orbital_gravitational_constant" in body else gravitational_constant
+						var gravitational_acc = (g_const * parent.mass) / (distance * distance)
+						sim_planet_velocities[body] += direction_to_parent.normalized() * gravitational_acc * time_step
+				sim_planet_positions[body] += sim_planet_velocities[body] * time_step
+		
+		# Apply gravity from all bodies to ship simulation
 		for body in central_bodies:
 			if body == null:
 				continue
 			
-			var direction_to_center = body.global_position - sim_pos
+			var body_pos = sim_planet_positions.get(body, body.global_position)
+			var direction_to_center = body_pos - sim_pos
 			var distance = direction_to_center.length()
-			var soi = calculate_sphere_of_influence()
+			
+			# Use per-planet SOI based on mass
+			var soi = calculate_sphere_of_influence_for_body(body.mass)
 			
 			if distance > 1.0 and distance <= soi:
 				var gravitational_acceleration = (gravitational_constant * body.mass) / (distance * distance)
@@ -311,13 +355,14 @@ func calculate_trajectory() -> void:
 			if body == null:
 				continue
 			
+			var body_pos = sim_planet_positions.get(body, body.global_position)
 			var planet_radius = planet_collision_radius
 			if body.has_node("Sprite2D"):
 				var sprite = body.get_node("Sprite2D")
 				if sprite.texture:
 					planet_radius = max(sprite.texture.get_width(), sprite.texture.get_height()) * sprite.scale.x / 2.0
 			
-			if (body.global_position - sim_pos).length() < (body_radius + planet_radius):
+			if (body_pos - sim_pos).length() < (body_radius + planet_radius):
 				predicted_trajectory.append(sim_pos)
 				collision_detected = true
 				break

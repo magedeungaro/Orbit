@@ -58,6 +58,7 @@ position = Vector2(568, 243)
 [node name="Planet1" type="Area2D" parent="Planets"]
 position = Vector2(1312, 768)
 script = ExtResource("5_planet")
+is_static = true
 mass = 25.0
 is_target = false
 
@@ -70,6 +71,7 @@ texture = ExtResource("7_tex1")
 [node name="Planet2" type="Area2D" parent="Planets"]
 position = Vector2(2312, 1568)
 script = ExtResource("5_planet")
+is_static = true
 mass = 30.0
 is_target = false
 
@@ -82,6 +84,7 @@ texture = ExtResource("8_tex2")
 [node name="TargetPlanet" type="Area2D" parent="Planets"]
 position = Vector2(3512, 1168)
 script = ExtResource("5_planet")
+is_static = true
 mass = 20.0
 is_target = true
 
