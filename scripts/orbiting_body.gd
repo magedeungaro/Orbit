@@ -63,6 +63,14 @@ var orientation_lock: OrientationLock = OrientationLock.NONE
 signal ship_exploded
 signal orientation_lock_changed(lock_type: int)
 
+## Get the current camera zoom scale factor for drawing
+## Returns inverse of zoom so lines appear same thickness regardless of zoom
+func _get_draw_scale() -> float:
+	var camera = get_viewport().get_camera_2d()
+	if camera != null:
+		return 1.0 / camera.zoom.x
+	return 1.0
+
 
 func _ready() -> void:
 	current_fuel = max_fuel
@@ -588,6 +596,8 @@ func _draw_nbody_trajectory() -> void:
 		ref_body_pos = _cached_orbit_ref_body.global_position
 	
 	var point_count = _nbody_trajectory.size()
+	var draw_scale = _get_draw_scale()
+	var line_width = 1.0 * draw_scale
 	
 	# Draw as dashed line to distinguish from the ellipse
 	for i in range(point_count - 1):
@@ -606,7 +616,7 @@ func _draw_nbody_trajectory() -> void:
 		var alpha = 0.6 - t * 0.4
 		var color = Color(_nbody_trajectory_color.r, _nbody_trajectory_color.g, _nbody_trajectory_color.b, alpha)
 		
-		draw_line(start_local, end_local, color, 1.5)
+		draw_line(start_local, end_local, color, line_width)
 
 
 ## Find the dominant gravity body for orbit visualization
@@ -747,6 +757,8 @@ func _draw_trajectory_ellipse(elements: Dictionary, ref_pos: Vector2) -> void:
 	var num_points = 128
 	var alpha = 0.7
 	var orbit_color = Color(trajectory_color.r, trajectory_color.g, trajectory_color.b, alpha)
+	var draw_scale = _get_draw_scale()
+	var line_width = 1.5 * draw_scale
 	
 	var points: PackedVector2Array = []
 	for i in range(num_points + 1):
@@ -757,16 +769,22 @@ func _draw_trajectory_ellipse(elements: Dictionary, ref_pos: Vector2) -> void:
 		points.append(to_local(world_point))
 	
 	for i in range(num_points):
-		draw_line(points[i], points[i + 1], orbit_color, 2.0)
+		draw_line(points[i], points[i + 1], orbit_color, line_width)
 	
-	# Periapsis marker (orange)
+	# Periapsis marker (orange) with chevron and "Pe" label
+	var periapsis_color = Color(1.0, 0.5, 0.3, 0.9)
 	var periapsis_pos = ref_pos + Vector2(periapsis_distance, 0).rotated(arg_periapsis)
-	draw_circle(to_local(periapsis_pos), 4.0, Color(1.0, 0.5, 0.3, 0.8))
+	var periapsis_local = to_local(periapsis_pos)
+	var periapsis_dir = periapsis_local.normalized() if periapsis_local.length() > 1 else Vector2.RIGHT
+	_draw_apsis_marker(periapsis_local, periapsis_dir, periapsis_color, "Pe", draw_scale)
 	
 	if not exits_soi:
-		# Apoapsis marker (blue)
+		# Apoapsis marker (blue) with chevron and "Ap" label
+		var apoapsis_color = Color(0.3, 0.5, 1.0, 0.9)
 		var apoapsis_pos = ref_pos + Vector2(-apoapsis_distance, 0).rotated(arg_periapsis)
-		draw_circle(to_local(apoapsis_pos), 4.0, Color(0.3, 0.5, 1.0, 0.8))
+		var apoapsis_local = to_local(apoapsis_pos)
+		var apoapsis_dir = apoapsis_local.normalized() if apoapsis_local.length() > 1 else Vector2.LEFT
+		_draw_apsis_marker(apoapsis_local, apoapsis_dir, apoapsis_color, "Ap", draw_scale)
 	else:
 		# SOI exit markers (red)
 		var exit_color = Color(1.0, 0.3, 0.3, 0.9)
@@ -778,8 +796,42 @@ func _draw_trajectory_ellipse(elements: Dictionary, ref_pos: Vector2) -> void:
 		var exit_pos1 = ref_pos + Vector2(soi_radius * cos(exit_anomaly + arg_periapsis), soi_radius * sin(exit_anomaly + arg_periapsis))
 		var exit_pos2 = ref_pos + Vector2(soi_radius * cos(-exit_anomaly + arg_periapsis), soi_radius * sin(-exit_anomaly + arg_periapsis))
 		
-		draw_circle(to_local(exit_pos1), 5.0, exit_color)
-		draw_circle(to_local(exit_pos2), 5.0, exit_color)
+		draw_circle(to_local(exit_pos1), 5.0 * draw_scale, exit_color)
+		draw_circle(to_local(exit_pos2), 5.0 * draw_scale, exit_color)
+
+
+## Draw an apsis marker with chevron and label
+func _draw_apsis_marker(pos: Vector2, direction: Vector2, color: Color, label: String, draw_scale: float = 1.0) -> void:
+	var chevron_size = 8.0 * draw_scale
+	var marker_radius = 4.0 * draw_scale
+	var chevron_offset = 12.0 * draw_scale
+	var label_offset_dist = 28.0 * draw_scale
+	var line_width = 1.5 * draw_scale
+	var font_size = int(14.0 * draw_scale)
+	
+	# Draw the center point
+	draw_circle(pos, marker_radius, color)
+	
+	# Calculate chevron points (pointing toward the marker from outside)
+	var perp = Vector2(-direction.y, direction.x)
+	var chevron_tip = pos + direction * chevron_offset
+	var chevron_left = chevron_tip - direction * chevron_size + perp * chevron_size * 0.6
+	var chevron_right = chevron_tip - direction * chevron_size - perp * chevron_size * 0.6
+	
+	# Draw chevron lines
+	draw_line(chevron_left, chevron_tip, color, line_width)
+	draw_line(chevron_right, chevron_tip, color, line_width)
+	
+	# Draw label offset from the marker, counter-rotated to stay horizontal
+	var label_offset = direction * label_offset_dist
+	var label_pos = pos + label_offset
+	
+	# Counter-rotate the drawing transform to keep text horizontal
+	# The ship's rotation is stored in the 'rotation' property
+	# Also scale the text with zoom
+	draw_set_transform(label_pos, -rotation, Vector2(draw_scale, draw_scale))
+	draw_string(ThemeDB.fallback_font, Vector2(-8, 4), label, HORIZONTAL_ALIGNMENT_CENTER, -1, 14, color)
+	draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)  # Reset transform
 
 
 func toggle_prograde_lock() -> void:
