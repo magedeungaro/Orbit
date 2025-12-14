@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://btouchcontrols_scene"]
+[gd_scene load_steps=13 format=3 uid="uid://btouchcontrols_scene"]
 
 [ext_resource type="Script" path="res://scripts/touch_controls_manager.gd" id="1_touch_mgr"]
 [ext_resource type="Texture2D" uid="uid://c2s2aw07goloe" path="res://Assets/Sprites/Turn Left.PNG" id="2_left"]
@@ -9,6 +9,8 @@
 [ext_resource type="Script" path="res://scripts/touch_reset_button.gd" id="7_reset_btn"]
 [ext_resource type="Texture2D" uid="uid://bgelqkalese1f" path="res://Assets/Sprites/Prograde Touch Control.PNG" id="8_prograde"]
 [ext_resource type="Script" path="res://scripts/touch_toggle_button.gd" id="9_toggle_btn"]
+[ext_resource type="Texture2D" uid="uid://dxvcdjylmk0qw" path="res://Assets/Sprites/Menu Button Touch Control.PNG" id="10_menu"]
+[ext_resource type="Script" path="res://scripts/touch_menu_button.gd" id="11_menu_btn"]
 
 [node name="TouchControls" type="CanvasLayer"]
 script = ExtResource("1_touch_mgr")
@@ -89,6 +91,21 @@ texture_normal = ExtResource("6_reset")
 ignore_texture_size = true
 stretch_mode = 0
 script = ExtResource("7_reset_btn")
+
+[node name="MenuButton" type="TextureButton" parent="TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -158.0
+offset_top = 20.0
+offset_right = -98.0
+offset_bottom = 80.0
+grow_horizontal = 0
+texture_normal = ExtResource("10_menu")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("11_menu_btn")
 
 [node name="ProgradeButton" type="TextureButton" parent="TouchControlContainer"]
 layout_mode = 1

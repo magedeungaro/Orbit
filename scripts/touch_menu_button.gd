@@ -7,4 +7,4 @@ func _ready() -> void:
 
 func _on_pressed() -> void:
 	if GameController:
-		GameController.restart_game()
+		GameController.show_pause_screen()
