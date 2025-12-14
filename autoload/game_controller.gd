@@ -52,6 +52,7 @@ var crash_restart_button: Button
 var back_button: Button
 var touch_controls_button: Button
 var soi_visibility_button: Button
+var fps_button: Button
 var level_select_back_button: Button
 var level_buttons: Array[Button] = []
 
@@ -86,6 +87,9 @@ var _saved_zoom: float = 0.8  # Default zoom level
 
 # SOI visibility setting
 var soi_visible: bool = true
+
+# FPS counter visibility setting
+var fps_visible: bool = false
 
 
 func _ready() -> void:
@@ -167,11 +171,13 @@ func _setup_ui_screens() -> void:
 	ui_layer.add_child(options_screen)
 	touch_controls_button = options_screen.get_node("CenterContainer/VBoxContainer/TouchControlsButton")
 	soi_visibility_button = options_screen.get_node("CenterContainer/VBoxContainer/SOIVisibilityButton")
+	fps_button = options_screen.get_node("CenterContainer/VBoxContainer/FPSButton")
 	back_button = options_screen.get_node("CenterContainer/VBoxContainer/BackButton")
 	touch_controls_button.pressed.connect(_on_touch_controls_pressed)
 	soi_visibility_button.pressed.connect(_on_soi_visibility_pressed)
+	fps_button.pressed.connect(_on_fps_pressed)
 	back_button.pressed.connect(_on_back_pressed)
-	_setup_focus_neighbors_three(touch_controls_button, soi_visibility_button, back_button)
+	_setup_focus_neighbors_four(touch_controls_button, soi_visibility_button, fps_button, back_button)
 	
 	_setup_pause_screen()
 	_setup_level_select_screen()
@@ -490,6 +496,7 @@ func show_options_screen() -> void:
 	options_screen.visible = true
 	_update_touch_controls_button_text()
 	_update_soi_visibility_button_text()
+	_update_fps_button_text()
 	touch_controls_button.grab_focus()
 
 
@@ -499,6 +506,7 @@ func show_options_from_pause() -> void:
 	options_screen.visible = true
 	_update_touch_controls_button_text()
 	_update_soi_visibility_button_text()
+	_update_fps_button_text()
 	touch_controls_button.grab_focus()
 
 
@@ -738,6 +746,13 @@ func _update_soi_visibility_button_text() -> void:
 	soi_visibility_button.text = "SOI Display: " + state_text
 
 
+func _update_fps_button_text() -> void:
+	if not fps_button:
+		return
+	var state_text := "On" if fps_visible else "Off"
+	fps_button.text = "FPS Counter: " + state_text
+
+
 func _on_start_pressed() -> void:
 	start_game()
 
@@ -835,6 +850,13 @@ func _on_soi_visibility_pressed() -> void:
 	_update_soi_visibility_button_text()
 	if Events:
 		Events.soi_visibility_changed.emit(soi_visible)
+
+
+func _on_fps_pressed() -> void:
+	fps_visible = not fps_visible
+	_update_fps_button_text()
+	if hud and hud.has_method("set_fps_visible"):
+		hud.set_fps_visible(fps_visible)
 
 
 func _on_camera_zoom_changed(zoom_level: float) -> void:

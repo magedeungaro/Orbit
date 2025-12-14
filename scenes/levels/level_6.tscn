@@ -85,7 +85,7 @@ shape = SubResource("CircleShape2D_outer")
 texture = ExtResource("8_ppjov")
 
 [node name="OuterPlanet2" type="Area2D" parent="Planets"]
-position = Vector2(12384, 3001)
+position = Vector2(12384, 3002)
 script = ExtResource("6_4wfvb")
 mass = 5.0
 orbits_around_path = NodePath("../OuterPlanet")

@@ -10,6 +10,7 @@ var fuel_bar: ProgressBar
 var goal_indicator: Control
 var target_body: Node2D = null
 var camera: Camera2D = null
+var fps_label: Label
 
 var audiowide_font: Font
 
@@ -27,6 +28,11 @@ func set_ship(ship: CharacterBody2D) -> void:
 	else:
 		target_body = null
 
+
+## Set FPS counter visibility
+func set_fps_visible(visible: bool) -> void:
+	if fps_label:
+		fps_label.visible = visible
 
 func _create_ui() -> void:
 	var margin = MarginContainer.new()
@@ -117,9 +123,36 @@ func _create_ui() -> void:
 	goal_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	goal_indicator.hud = self
 	add_child(goal_indicator)
+	
+	# Create FPS label on the right side
+	var fps_margin = MarginContainer.new()
+	fps_margin.name = "FPSMarginContainer"
+	fps_margin.anchor_left = 1.0
+	fps_margin.anchor_right = 1.0
+	fps_margin.anchor_top = 0.0
+	fps_margin.anchor_bottom = 0.0
+	fps_margin.offset_left = -150
+	fps_margin.offset_right = -30
+	fps_margin.offset_top = 30
+	fps_margin.offset_bottom = 60
+	fps_margin.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	add_child(fps_margin)
+	
+	fps_label = Label.new()
+	fps_label.name = "FPSLabel"
+	fps_label.add_theme_font_override("font", audiowide_font)
+	fps_label.add_theme_font_size_override("font_size", 20)
+	fps_label.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
+	fps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	fps_label.visible = false  # Hidden by default
+	fps_margin.add_child(fps_label)
 
 
 func _process(_delta: float) -> void:
+	# Update FPS label if visible
+	if fps_label and fps_label.visible:
+		fps_label.text = "FPS: %d" % Engine.get_frames_per_second()
+	
 	if orbiting_body == null or fuel_label == null:
 		return
 	
