@@ -2,6 +2,8 @@ extends CanvasLayer
 
 var orbiting_body: CharacterBody2D
 var speed_label: Label
+var relative_speed_label: Label
+var reference_body_label: Label
 var info_label: Label
 var fuel_label: Label
 var fuel_bar: ProgressBar
@@ -36,6 +38,8 @@ func _create_ui() -> void:
 	
 	var vbox = VBoxContainer.new()
 	vbox.name = "VBoxContainer"
+	# Set a fixed minimum width to prevent resizing when numbers change
+	vbox.custom_minimum_size = Vector2(300, 0)
 	margin.add_child(vbox)
 	
 	fuel_label = Label.new()
@@ -43,11 +47,13 @@ func _create_ui() -> void:
 	fuel_label.add_theme_font_override("font", audiowide_font)
 	fuel_label.add_theme_font_size_override("font_size", 24)
 	fuel_label.add_theme_color_override("font_color", Color.WHITE)
+	fuel_label.custom_minimum_size = Vector2(280, 0)
 	vbox.add_child(fuel_label)
 	
 	fuel_bar = ProgressBar.new()
 	fuel_bar.name = "FuelBar"
 	fuel_bar.custom_minimum_size = Vector2(280, 28)
+	fuel_bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	fuel_bar.max_value = 100
 	fuel_bar.value = 100
 	fuel_bar.show_percentage = false
@@ -78,13 +84,31 @@ func _create_ui() -> void:
 	speed_label.add_theme_font_override("font", audiowide_font)
 	speed_label.add_theme_font_size_override("font_size", 24)
 	speed_label.add_theme_color_override("font_color", Color.WHITE)
+	speed_label.custom_minimum_size = Vector2(280, 0)
 	vbox.add_child(speed_label)
+	
+	relative_speed_label = Label.new()
+	relative_speed_label.name = "RelativeSpeedLabel"
+	relative_speed_label.add_theme_font_override("font", audiowide_font)
+	relative_speed_label.add_theme_font_size_override("font_size", 24)
+	relative_speed_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	relative_speed_label.custom_minimum_size = Vector2(280, 0)
+	vbox.add_child(relative_speed_label)
+	
+	reference_body_label = Label.new()
+	reference_body_label.name = "ReferenceBodyLabel"
+	reference_body_label.add_theme_font_override("font", audiowide_font)
+	reference_body_label.add_theme_font_size_override("font_size", 20)
+	reference_body_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	reference_body_label.custom_minimum_size = Vector2(280, 0)
+	vbox.add_child(reference_body_label)
 	
 	info_label = Label.new()
 	info_label.name = "InfoLabel"
 	info_label.add_theme_font_override("font", audiowide_font)
 	info_label.add_theme_font_size_override("font_size", 20)
 	info_label.add_theme_color_override("font_color", Color.WHITE)
+	info_label.custom_minimum_size = Vector2(280, 0)
 	vbox.add_child(info_label)
 	
 	goal_indicator = GoalIndicator.new()
@@ -114,6 +138,19 @@ func _process(_delta: float) -> void:
 	
 	var current_speed = orbiting_body.velocity.length()
 	speed_label.text = "Speed: %.1f" % current_speed
+	
+	# Calculate and display relative velocity and reference body
+	var ref_body = orbiting_body._cached_orbit_ref_body
+	var relative_velocity = orbiting_body.velocity
+	var ref_body_name = "None"
+	
+	if ref_body != null:
+		ref_body_name = ref_body.name
+		if "velocity" in ref_body:
+			relative_velocity = orbiting_body.velocity - ref_body.velocity
+	
+	relative_speed_label.text = "Relative Speed: %.1f" % relative_velocity.length()
+	reference_body_label.text = "Reference: %s" % ref_body_name
 	
 	var thrust_angle = orbiting_body.thrust_angle
 	var orientation_mode = orbiting_body.get_orientation_lock_name()

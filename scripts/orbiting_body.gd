@@ -105,11 +105,6 @@ func _physics_process(delta: float) -> void:
 		queue_redraw()
 		return
 	
-	# Track SOI changes to trigger orbit recalculation
-	var current_dominant_body = _find_dominant_gravity_body()
-	if current_dominant_body != _cached_orbit_ref_body:
-		_orbit_needs_recalc = true
-	
 	# Planet collision is now handled by Area2D trigger detection
 	handle_thrust_input(delta)
 	apply_gravity_from_all_bodies(delta)
@@ -117,6 +112,13 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	handle_screen_bounce()
 	check_orbit_stability(delta)
+	
+	# Track SOI changes AFTER physics has been applied
+	# This ensures orbital elements are calculated with the correct velocity
+	var current_dominant_body = _find_dominant_gravity_body()
+	if current_dominant_body != _cached_orbit_ref_body:
+		_orbit_needs_recalc = true
+	
 	queue_redraw()
 
 
@@ -411,21 +413,28 @@ func _draw() -> void:
 	_was_thrusting = _is_thrusting
 	
 	var elements_to_draw = _cached_orbital_elements
+	# Use the reference position from when elements were calculated for consistency
+	# But for drawing, we want current position so the ellipse moves with the planet
+	var ref_pos_for_drawing = current_ref_body.global_position if current_ref_body != null else Vector2.ZERO
+	
 	if _is_thrusting and current_ref_body != null:
 		elements_to_draw = _calculate_orbital_elements(
 			current_ref_body.global_position,
 			current_ref_body.mass
 		)
+		ref_pos_for_drawing = current_ref_body.global_position
 		_calculate_nbody_trajectory()
 	
 	if not elements_to_draw.is_empty() and current_ref_body != null:
 		if elements_to_draw["eccentricity"] < 0.98:
-			_draw_trajectory_ellipse(elements_to_draw, current_ref_body.global_position)
+			# Use the current planet position for drawing so the ellipse moves with it
+			_draw_trajectory_ellipse(elements_to_draw, ref_pos_for_drawing)
 	
 	_draw_nbody_trajectory()
 
 
 ## Calculate n-body trajectory for multi-body perturbation visualization
+## Stores trajectory as positions relative to reference body for consistent visualization
 func _calculate_nbody_trajectory() -> void:
 	_nbody_trajectory.clear()
 	
@@ -437,6 +446,7 @@ func _calculate_nbody_trajectory() -> void:
 	var time_step = trajectory_prediction_time / trajectory_points
 	
 	var planet_data: Array = []
+	var ref_body_idx: int = -1
 	for body in central_bodies:
 		if body == null:
 			continue
@@ -455,27 +465,23 @@ func _calculate_nbody_trajectory() -> void:
 				if central_bodies[j] == body.orbits_around:
 					data["orbits_around_idx"] = j
 					break
+		if body == _cached_orbit_ref_body:
+			ref_body_idx = planet_data.size()
 		planet_data.append(data)
 	
-	_nbody_trajectory.append(sim_pos)
+	# Track if we should store relative coordinates
+	var use_relative_coords: bool = ref_body_idx >= 0
+	var initial_ref_pos: Vector2 = planet_data[ref_body_idx]["pos"] if use_relative_coords else Vector2.ZERO
+	
+	# Store first point relative to reference body
+	if use_relative_coords:
+		_nbody_trajectory.append(sim_pos - initial_ref_pos)
+	else:
+		_nbody_trajectory.append(sim_pos)
 	
 	for i in range(trajectory_points):
-		for j in range(planet_data.size()):
-			var pd = planet_data[j]
-			if pd["is_static"]:
-				continue
-			var parent_idx = pd["orbits_around_idx"]
-			if parent_idx >= 0 and parent_idx < planet_data.size():
-				var parent_pos = planet_data[parent_idx]["pos"]
-				var dir_to_parent = parent_pos - pd["pos"]
-				var dist = dir_to_parent.length()
-				if dist > 1.0:
-					var parent_mass = planet_data[parent_idx]["mass"]
-					var g_acc = (pd["g_const"] * parent_mass) / (dist * dist)
-					pd["vel"] += dir_to_parent.normalized() * g_acc * time_step
-			pd["pos"] += pd["vel"] * time_step
-		
-		# Find which SOI the simulated ship is inside (patched conic)
+		# Find which SOI the simulated ship is inside FIRST (using current positions)
+		# This matches how the actual physics determines SOI before applying gravity
 		var sim_soi_idx: int = -1
 		var smallest_soi: float = INF
 		for j in range(planet_data.size()):
@@ -498,6 +504,7 @@ func _calculate_nbody_trajectory() -> void:
 					ignored_indices.append(grandparent_idx)
 		
 		# Apply "ride along" acceleration when inside a moving planet's SOI
+		# This must happen BEFORE planet positions update (same as actual physics)
 		if sim_soi_idx >= 0:
 			var parent_idx = planet_data[sim_soi_idx]["orbits_around_idx"]
 			if parent_idx >= 0:
@@ -509,6 +516,7 @@ func _calculate_nbody_trajectory() -> void:
 					var parent_accel = (soi_pd["g_const"] * parent_pd["mass"]) / (dist_to_parent * dist_to_parent)
 					sim_vel += dir_to_parent.normalized() * parent_accel * time_step
 		
+		# Apply gravity from bodies (before planets move)
 		var total_accel = Vector2.ZERO
 		for j in range(planet_data.size()):
 			var pd = planet_data[j]
@@ -525,6 +533,29 @@ func _calculate_nbody_trajectory() -> void:
 		sim_vel += total_accel * time_step
 		sim_pos += sim_vel * time_step
 		
+		# NOW update planet positions for the next iteration
+		for j in range(planet_data.size()):
+			var pd = planet_data[j]
+			if pd["is_static"]:
+				continue
+			var parent_idx = pd["orbits_around_idx"]
+			if parent_idx >= 0 and parent_idx < planet_data.size():
+				var parent_pos = planet_data[parent_idx]["pos"]
+				var dir_to_parent = parent_pos - pd["pos"]
+				var dist = dir_to_parent.length()
+				if dist > 1.0:
+					var parent_mass = planet_data[parent_idx]["mass"]
+					var g_acc = (pd["g_const"] * parent_mass) / (dist * dist)
+					pd["vel"] += dir_to_parent.normalized() * g_acc * time_step
+			pd["pos"] += pd["vel"] * time_step
+		
+		# Store position relative to reference body for consistent drawing with ellipse
+		var point_to_store: Vector2
+		if use_relative_coords and ref_body_idx >= 0:
+			point_to_store = sim_pos - planet_data[ref_body_idx]["pos"]
+		else:
+			point_to_store = sim_pos
+		
 		var collision = false
 		for pd in planet_data:
 			if (pd["pos"] - sim_pos).length() < (body_radius + pd["radius"]):
@@ -532,16 +563,17 @@ func _calculate_nbody_trajectory() -> void:
 				break
 		
 		if collision:
-			_nbody_trajectory.append(sim_pos)
+			_nbody_trajectory.append(point_to_store)
 			break
 		
 		if sim_pos.x < boundary_left or sim_pos.x > boundary_right or sim_pos.y < boundary_top or sim_pos.y > boundary_bottom:
 			break
 		
-		_nbody_trajectory.append(sim_pos)
+		_nbody_trajectory.append(point_to_store)
 
 
 ## Draw the n-body trajectory as a dashed/different colored line
+## Points are stored relative to reference body, so we add current ref position when drawing
 func _draw_nbody_trajectory() -> void:
 	if _nbody_trajectory.size() < 2:
 		return
@@ -549,6 +581,11 @@ func _draw_nbody_trajectory() -> void:
 	# Only draw if there are multiple gravitational bodies (otherwise it's same as ellipse)
 	if central_bodies.size() < 2:
 		return
+	
+	# Get current reference body position for converting relative coords to world
+	var ref_body_pos = Vector2.ZERO
+	if _cached_orbit_ref_body != null:
+		ref_body_pos = _cached_orbit_ref_body.global_position
 	
 	var point_count = _nbody_trajectory.size()
 	
@@ -558,8 +595,11 @@ func _draw_nbody_trajectory() -> void:
 		if i % 3 == 0:
 			continue
 		
-		var start_local = to_local(_nbody_trajectory[i])
-		var end_local = to_local(_nbody_trajectory[i + 1])
+		# Convert relative positions to world positions, then to local for drawing
+		var world_start = _nbody_trajectory[i] + ref_body_pos
+		var world_end = _nbody_trajectory[i + 1] + ref_body_pos
+		var start_local = to_local(world_start)
+		var end_local = to_local(world_end)
 		
 		# Fade based on distance along trajectory
 		var t = float(i) / float(point_count)
@@ -601,6 +641,8 @@ func _calculate_orbital_elements(ref_pos: Vector2, ref_mass: float) -> Dictionar
 	var r_vec = global_position - ref_pos
 	var v_vec = velocity
 	
+	# When inside a moving body's SOI, calculate velocity relative to that body
+	# The ship "rides along" with the reference body in its orbit around the parent
 	if _cached_orbit_ref_body != null and "velocity" in _cached_orbit_ref_body:
 		v_vec = velocity - _cached_orbit_ref_body.velocity
 	
@@ -632,6 +674,15 @@ func _calculate_orbital_elements(ref_pos: Vector2, ref_mass: float) -> Dictionar
 	
 	var arg_periapsis = atan2(e_vec.y, e_vec.x)
 	
+	# Calculate current true anomaly (angle from periapsis to current position)
+	var current_angle = atan2(r_vec.y, r_vec.x)
+	var true_anomaly = current_angle - arg_periapsis
+	# Normalize to -PI to PI
+	while true_anomaly > PI:
+		true_anomaly -= TAU
+	while true_anomaly < -PI:
+		true_anomaly += TAU
+	
 	# Semi-minor axis
 	var semi_minor: float
 	if eccentricity < 1.0 and semi_major > 0:
@@ -646,9 +697,11 @@ func _calculate_orbital_elements(ref_pos: Vector2, ref_mass: float) -> Dictionar
 		"semi_minor": semi_minor,
 		"eccentricity": eccentricity,
 		"arg_periapsis": arg_periapsis,
+		"true_anomaly": true_anomaly,
 		"focus_distance": focus_distance,
 		"energy": energy,
-		"angular_momentum": h
+		"angular_momentum": h,
+		"ref_pos": ref_pos  # Store the reference position used for calculation
 	}
 
 
@@ -658,6 +711,7 @@ func _draw_trajectory_ellipse(elements: Dictionary, ref_pos: Vector2) -> void:
 	var semi_minor = elements["semi_minor"]
 	var eccentricity = elements["eccentricity"]
 	var arg_periapsis = elements["arg_periapsis"]
+	var current_true_anomaly = elements["true_anomaly"] if elements.has("true_anomaly") else 0.0
 	
 	if semi_major <= 0 or semi_minor <= 0 or not is_finite(semi_major) or not is_finite(semi_minor):
 		return
@@ -672,7 +726,7 @@ func _draw_trajectory_ellipse(elements: Dictionary, ref_pos: Vector2) -> void:
 	
 	var periapsis_distance = semi_major * (1.0 - eccentricity)
 	var apoapsis_distance = semi_major * (1.0 + eccentricity)
-	var exits_soi = apoapsis_distance > soi_radius
+	var exits_soi = apoapsis_distance > soi_radius and eccentricity > 0.01
 	
 	var start_anomaly: float = 0.0
 	var end_anomaly: float = TAU
@@ -683,6 +737,10 @@ func _draw_trajectory_ellipse(elements: Dictionary, ref_pos: Vector2) -> void:
 		var cos_exit = (p / soi_radius - 1.0) / eccentricity
 		cos_exit = clamp(cos_exit, -1.0, 1.0)
 		var exit_anomaly = acos(cos_exit)
+		
+		# For an orbit that exits SOI, draw from current position toward exit
+		# The visible arc should be from one exit point to the other, through periapsis
+		# But we need to ensure current position is on the visible portion
 		start_anomaly = -exit_anomaly
 		end_anomaly = exit_anomaly
 	
@@ -741,13 +799,20 @@ func toggle_retrograde_lock() -> void:
 
 
 func update_orientation_lock() -> void:
-	if velocity.length() < 1.0:
+	# Calculate relative velocity for prograde/retrograde direction
+	# When inside a moving planet's SOI, use velocity relative to that planet
+	var relative_velocity = velocity
+	if _cached_orbit_ref_body != null and "velocity" in _cached_orbit_ref_body:
+		relative_velocity = velocity - _cached_orbit_ref_body.velocity
+	
+	if relative_velocity.length() < 1.0:
 		if orientation_lock != OrientationLock.NONE:
 			orientation_lock = OrientationLock.NONE
 			orientation_lock_changed.emit(orientation_lock)
 		return
 	
-	var prograde_angle = rad_to_deg(velocity.angle())
+	# Prograde is the direction of travel relative to the reference body
+	var prograde_angle = rad_to_deg(relative_velocity.angle())
 	var target_angle: float
 	
 	if orientation_lock == OrientationLock.PROGRADE:

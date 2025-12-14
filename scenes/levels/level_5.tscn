@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://c5level5scene"]
+[gd_scene load_steps=11 format=3 uid="uid://c5level5scene"]
 
 [ext_resource type="Script" uid="uid://csvg6f6vuqqfe" path="res://scripts/level_config.gd" id="1_config"]
 [ext_resource type="Script" uid="uid://derr4cln3we0j" path="res://scripts/camera_follow.gd" id="2_camera"]
@@ -7,7 +7,6 @@
 [ext_resource type="Script" uid="uid://0baglt5002m1" path="res://scripts/central_body.gd" id="5_planet"]
 [ext_resource type="PackedScene" path="res://scenes/prefabs/ship.tscn" id="6_ship"]
 [ext_resource type="Texture2D" uid="uid://bvev41whwp4ii" path="res://Assets/Sprites/Planet 1.PNG" id="7_sun_tex"]
-[ext_resource type="Texture2D" uid="uid://fyxnlyles8s2" path="res://Assets/Sprites/Planet 2.PNG" id="8_planet_tex"]
 [ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="9_target_tex"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_sun"]
@@ -15,9 +14,6 @@ radius = 200.0
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_outer"]
 radius = 140.0
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_moon"]
-radius = 60.0
 
 [node name="Level5" type="Node2D"]
 script = ExtResource("1_config")
@@ -52,7 +48,6 @@ script = ExtResource("3_orbit_vis")
 
 [node name="Ship" parent="Player" instance=ExtResource("6_ship")]
 position = Vector2(1500, 3000)
-debug_infinite_fuel = true
 initial_velocity = Vector2(0, 410)
 thrust_force = 60.0
 boundary_left = -10000.0
@@ -86,17 +81,3 @@ shape = SubResource("CircleShape2D_outer")
 
 [node name="Sprite2D" type="Sprite2D" parent="Planets/OuterPlanet"]
 texture = ExtResource("9_target_tex")
-
-[node name="Moon" type="Area2D" parent="Planets"]
-position = Vector2(11000, 1715)
-script = ExtResource("5_planet")
-mass = 8.0
-orbits_around_path = NodePath("../OuterPlanet")
-initial_velocity = Vector2(-15, 0)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Moon"]
-shape = SubResource("CircleShape2D_moon")
-
-[node name="Sprite2D" type="Sprite2D" parent="Planets/Moon"]
-scale = Vector2(0.4, 0.4)
-texture = ExtResource("8_planet_tex")
