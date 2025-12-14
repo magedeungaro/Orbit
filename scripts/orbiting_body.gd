@@ -345,6 +345,18 @@ func apply_gravity_from_all_bodies(delta: float) -> void:
 			var parent_accel = (parent_g_const * parent_body.mass) / (dist_to_parent * dist_to_parent)
 			# Apply same acceleration to ship that planet experiences
 			velocity += dir_to_parent.normalized() * parent_accel * delta
+		
+		# If the parent also orbits something (grandparent), apply that acceleration too
+		# This is needed for moons: ship must also experience the planet's acceleration toward the sun
+		if "orbits_around" in parent_body and parent_body.orbits_around != null:
+			var grandparent_body = parent_body.orbits_around
+			var dir_to_grandparent = grandparent_body.global_position - parent_body.global_position
+			var dist_to_grandparent = dir_to_grandparent.length()
+			if dist_to_grandparent > 1.0:
+				var grandparent_g_const = parent_body.orbital_gravitational_constant if "orbital_gravitational_constant" in parent_body else gravitational_constant
+				var grandparent_accel = (grandparent_g_const * grandparent_body.mass) / (dist_to_grandparent * dist_to_grandparent)
+				# Apply same acceleration to ship that the parent planet experiences from grandparent
+				velocity += dir_to_grandparent.normalized() * grandparent_accel * delta
 	
 	for body in central_bodies:
 		if body == null:
@@ -549,6 +561,16 @@ func _calculate_nbody_trajectory() -> void:
 				if dist_to_parent > 1.0:
 					var parent_accel = (soi_pd["g_const"] * parent_pd["mass"]) / (dist_to_parent * dist_to_parent)
 					sim_vel += dir_to_parent.normalized() * parent_accel * time_step
+				
+				# Also apply grandparent ride-along (for moons orbiting planets orbiting sun)
+				var grandparent_idx = parent_pd["orbits_around_idx"]
+				if grandparent_idx >= 0:
+					var grandparent_pd = planet_data[grandparent_idx]
+					var dir_to_grandparent = grandparent_pd["pos"] - parent_pd["pos"]
+					var dist_to_grandparent = dir_to_grandparent.length()
+					if dist_to_grandparent > 1.0:
+						var grandparent_accel = (parent_pd["g_const"] * grandparent_pd["mass"]) / (dist_to_grandparent * dist_to_grandparent)
+						sim_vel += dir_to_grandparent.normalized() * grandparent_accel * time_step
 		
 		# Apply gravity from bodies (before planets move)
 		var total_accel = Vector2.ZERO
