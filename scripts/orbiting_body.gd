@@ -419,11 +419,8 @@ func _draw() -> void:
 		_calculate_nbody_trajectory()
 	
 	if not elements_to_draw.is_empty() and current_ref_body != null:
-		var max_eccentricity_for_ellipse: float = 0.98
-		if elements_to_draw["eccentricity"] < max_eccentricity_for_ellipse:
+		if elements_to_draw["eccentricity"] < 0.98:
 			_draw_trajectory_ellipse(elements_to_draw, current_ref_body.global_position)
-		else:
-			_draw_escape_trajectory(elements_to_draw, current_ref_body)
 	
 	_draw_nbody_trajectory()
 
@@ -725,76 +722,6 @@ func _draw_trajectory_ellipse(elements: Dictionary, ref_pos: Vector2) -> void:
 		
 		draw_circle(to_local(exit_pos1), 5.0, exit_color)
 		draw_circle(to_local(exit_pos2), 5.0, exit_color)
-		
-		# Calculate and draw escape velocity lines
-		var h = elements["angular_momentum"]
-		var mu = gravitational_constant * _cached_orbit_ref_body.mass
-		var h_sign = sign(h)
-		
-		var v_r1 = (mu / abs(h)) * eccentricity * sin(exit_anomaly)
-		var v_t1 = (mu / abs(h)) * (1.0 + eccentricity * cos(exit_anomaly))
-		var radial_dir1 = Vector2(cos(exit_anomaly + arg_periapsis), sin(exit_anomaly + arg_periapsis))
-		var tangent_dir1 = Vector2(-sin(exit_anomaly + arg_periapsis), cos(exit_anomaly + arg_periapsis)) * h_sign
-		var vel_dir1 = (radial_dir1 * v_r1 + tangent_dir1 * v_t1).normalized()
-		
-		var v_r2 = (mu / abs(h)) * eccentricity * sin(-exit_anomaly)
-		var v_t2 = (mu / abs(h)) * (1.0 + eccentricity * cos(-exit_anomaly))
-		var radial_dir2 = Vector2(cos(-exit_anomaly + arg_periapsis), sin(-exit_anomaly + arg_periapsis))
-		var tangent_dir2 = Vector2(-sin(-exit_anomaly + arg_periapsis), cos(-exit_anomaly + arg_periapsis)) * h_sign
-		var vel_dir2 = (radial_dir2 * v_r2 + tangent_dir2 * v_t2).normalized()
-		
-		var escape_alpha = 0.4
-		var escape_color = Color(trajectory_color.r, trajectory_color.g, trajectory_color.b, escape_alpha)
-		var extend_distance = 300.0
-		
-		draw_line(to_local(exit_pos1), to_local(exit_pos1 + vel_dir1 * extend_distance), escape_color, 2.0)
-		draw_line(to_local(exit_pos2), to_local(exit_pos2 + vel_dir2 * extend_distance), escape_color, 2.0)
-
-
-## Draw hyperbolic/escape trajectory
-func _draw_escape_trajectory(elements: Dictionary, ref_body: Node2D) -> void:
-	var eccentricity = elements["eccentricity"]
-	var semi_major = abs(elements["semi_major"])
-	var arg_periapsis = elements["arg_periapsis"]
-	var ref_pos = ref_body.global_position
-	
-	var periapsis_distance = semi_major * (eccentricity - 1.0) if eccentricity > 1.0 else semi_major * (1.0 - eccentricity)
-	
-	var num_points = 100
-	var max_true_anomaly = acos(-1.0 / eccentricity) * 0.9 if eccentricity > 1.0 else PI * 0.95
-	
-	var points: PackedVector2Array = []
-	for i in range(num_points):
-		var t = float(i) / float(num_points - 1)
-		var true_anomaly = -max_true_anomaly + t * 2.0 * max_true_anomaly
-		
-		var r: float
-		if eccentricity >= 1.0:
-			var denom = 1.0 + eccentricity * cos(true_anomaly)
-			if denom <= 0.01:
-				continue
-			r = semi_major * (eccentricity * eccentricity - 1.0) / denom
-		else:
-			r = semi_major * (1.0 - eccentricity * eccentricity) / (1.0 + eccentricity * cos(true_anomaly))
-		
-		if r <= 0 or r > 50000:
-			continue
-		
-		var angle = true_anomaly + arg_periapsis
-		var pos = ref_pos + Vector2(r * cos(angle), r * sin(angle))
-		points.append(to_local(pos))
-	
-	if points.size() > 1:
-		var alpha = 0.7
-		for i in range(points.size() - 1):
-			var t = abs(float(i) - float(points.size()) / 2.0) / (float(points.size()) / 2.0)
-			var line_alpha = alpha * (1.0 - t * 0.5)
-			var line_color = Color(trajectory_color.r, trajectory_color.g, trajectory_color.b, line_alpha)
-			draw_line(points[i], points[i + 1], line_color, 2.0)
-	
-	# Periapsis marker
-	var periapsis_pos = ref_pos + Vector2(periapsis_distance, 0).rotated(arg_periapsis)
-	draw_circle(to_local(periapsis_pos), 4.0, Color(1.0, 0.5, 0.3, 0.8))
 
 
 func toggle_prograde_lock() -> void:
