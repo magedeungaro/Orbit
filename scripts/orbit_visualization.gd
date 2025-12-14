@@ -41,7 +41,9 @@ func _draw() -> void:
 	if orbiting_body == null:
 		return
 	
-	if orbiting_body.show_sphere_of_influence and not orbiting_body.central_bodies.is_empty():
+	# Check both the ship's setting and the global GameController setting
+	var soi_enabled = orbiting_body.show_sphere_of_influence and GameController.soi_visible
+	if soi_enabled and not orbiting_body.central_bodies.is_empty():
 		for body in orbiting_body.central_bodies:
 			if body != null:
 				var soi = orbiting_body.calculate_sphere_of_influence_for_body(body.mass)

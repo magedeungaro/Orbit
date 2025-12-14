@@ -179,7 +179,6 @@ class GoalIndicator extends Control:
 		var ship_pos = hud.orbiting_body.global_position
 		var target_pos = hud.target_body.global_position
 		var to_target = target_pos - ship_pos
-		var distance = to_target.length()
 		var direction = to_target.normalized()
 		
 		var camera = hud.camera
@@ -194,15 +193,40 @@ class GoalIndicator extends Control:
 		var is_on_screen = abs(target_relative.x) < half_size.x and abs(target_relative.y) < half_size.y
 		
 		var arrow_color = Color(0.3, 1.0, 0.5, 0.9)
-		var margin = 60.0
 		
 		if is_on_screen:
+			# Draw small arrow pointing to target center
 			var screen_pos = screen_center + (target_relative * zoom)
-			draw_arc(screen_pos, 40, 0, TAU, 32, arrow_color, 3.0)
-			var dist_text = "%.0f" % distance
-			draw_string(ThemeDB.fallback_font, screen_pos + Vector2(-20, -50), dist_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 16, arrow_color)
-			draw_string(ThemeDB.fallback_font, screen_pos + Vector2(-30, -35), "GOAL", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, arrow_color)
+			var arrow_length = 25.0
+			var arrow_head_size = 8.0
+			
+			# Get planet radius from collision shape
+			var planet_radius = 156.0  # Default
+			for child in hud.target_body.get_children():
+				if child is CollisionShape2D and child.shape is CircleShape2D:
+					planet_radius = child.shape.radius
+					break
+			
+			# Convert planet radius to screen space and add small gap
+			var screen_radius = planet_radius * zoom.x
+			var gap = 10.0  # Small gap between planet edge and arrow
+			var offset_from_center = screen_radius + gap + arrow_length
+			
+			# Arrow points toward the planet center, starting from outside the planet
+			var arrow_start = screen_pos - direction * offset_from_center
+			var arrow_tip = screen_pos - direction * (screen_radius + gap)
+			
+			draw_line(arrow_start, arrow_tip, arrow_color, 2.0)
+			
+			var perp = Vector2(-direction.y, direction.x)
+			var head_left = arrow_tip - direction * arrow_head_size + perp * (arrow_head_size * 0.5)
+			var head_right = arrow_tip - direction * arrow_head_size - perp * (arrow_head_size * 0.5)
+			var arrow_head = PackedVector2Array([arrow_tip, head_left, head_right])
+			draw_colored_polygon(arrow_head, arrow_color)
 		else:
+			# Draw arrow on screen edge pointing to off-screen target
+			var margin = 60.0
+			
 			var arrow_pos = screen_center
 			var screen_bounds = Rect2(
 				Vector2(margin, margin),
@@ -251,7 +275,4 @@ class GoalIndicator extends Control:
 			var head_right = arrow_pos - direction * arrow_head_size - perp * (arrow_head_size * 0.6)
 			var arrow_head = PackedVector2Array([arrow_pos, head_left, head_right])
 			draw_colored_polygon(arrow_head, arrow_color)
-			
-			var text_offset = -direction * 45
-			var dist_text = "%.0f" % distance
-			draw_string(ThemeDB.fallback_font, arrow_base + text_offset + Vector2(-15, 5), dist_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 14, arrow_color)
+

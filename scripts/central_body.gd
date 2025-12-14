@@ -80,6 +80,9 @@ func _ready() -> void:
 		_initialize_orbit()
 		# Find all other planets in the scene for gravitational interactions
 		call_deferred("_find_other_planets")
+		# Create target indicator overlay if this is a target
+		if is_target:
+			_create_target_indicator()
 
 
 func _resolve_orbit_parent() -> void:
@@ -164,6 +167,12 @@ func _apply_gravity(delta: float) -> void:
 			velocity += direction_to_parent.normalized() * gravitational_acceleration * delta
 
 
+func _create_target_indicator() -> void:
+	var indicator = TargetIndicator.new()
+	indicator.name = "TargetIndicator"
+	add_child(indicator)
+
+
 func _draw() -> void:
 	if not Engine.is_editor_hint() or not show_soi_in_editor:
 		return
@@ -208,3 +217,30 @@ func get_orbital_speed() -> float:
 ## Check if this planet is in a stable orbit
 func is_orbiting() -> bool:
 	return orbits_around != null and velocity.length() > 0
+
+
+## Inner class for target indicator that renders on top of the sprite
+class TargetIndicator extends Node2D:
+	func _ready() -> void:
+		# Ensure this renders on top by setting z_index
+		z_index = 1
+	
+	func _process(_delta: float) -> void:
+		queue_redraw()
+	
+	func _draw() -> void:
+		var parent = get_parent()
+		if parent == null:
+			return
+		
+		# Get planet radius from collision shape
+		var planet_radius = 156.0  # Default
+		for child in parent.get_children():
+			if child is CollisionShape2D and child.shape is CircleShape2D:
+				planet_radius = child.shape.radius
+				break
+		
+		# Draw circle inside the planet (80% of radius)
+		var circle_radius = planet_radius * 0.7
+		var circle_color = Color(0.0, 1.0, 0.3, 0.6)
+		draw_arc(Vector2.ZERO, circle_radius, 0, TAU, 64, circle_color, 3.0)
