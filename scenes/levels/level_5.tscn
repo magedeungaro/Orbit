@@ -70,14 +70,31 @@ scale = Vector2(1.5, 1.5)
 texture = ExtResource("7_sun_tex")
 
 [node name="OuterPlanet" type="Area2D" parent="Planets"]
-position = Vector2(11000, 3000)
+position = Vector2(11000, 3001)
 script = ExtResource("5_planet")
-mass = 300.0
+mass = 50.0
 orbits_around_path = NodePath("../Sun")
+use_custom_orbit = true
+orbit_path_color = Color(0.5019608, 0.69803923, 1, 0.5294118)
 is_target = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/OuterPlanet"]
 shape = SubResource("CircleShape2D_outer")
 
 [node name="Sprite2D" type="Sprite2D" parent="Planets/OuterPlanet"]
+texture = ExtResource("9_target_tex")
+
+[node name="OuterPlanet2" type="Area2D" parent="Planets"]
+position = Vector2(12384, 3001)
+script = ExtResource("5_planet")
+mass = 2.0
+orbits_around_path = NodePath("../OuterPlanet")
+use_custom_orbit = true
+orbit_semi_major_axis = 1772.0
+orbit_path_color = Color(0.5019608, 0.69803923, 1, 0.5294118)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/OuterPlanet2"]
+shape = SubResource("CircleShape2D_outer")
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/OuterPlanet2"]
 texture = ExtResource("9_target_tex")

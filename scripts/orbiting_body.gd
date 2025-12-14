@@ -449,9 +449,21 @@ func _calculate_nbody_trajectory() -> void:
 	if central_bodies.is_empty():
 		return
 	
+	# Check if we're in a stable orbit - if so, limit trajectory to ~1 orbit
+	var prediction_time = trajectory_prediction_time
+	if not _cached_orbital_elements.is_empty():
+		var ecc = _cached_orbital_elements.get("eccentricity", 1.0)
+		var sma = _cached_orbital_elements.get("semi_major_axis", 0.0)
+		if ecc < 0.98 and sma > 0 and _cached_orbit_ref_body != null:
+			# Calculate orbital period: T = 2π * sqrt(a³ / (G*M))
+			var ref_mass = _cached_orbit_ref_body.mass
+			var orbital_period = TAU * sqrt(pow(sma, 3) / (gravitational_constant * ref_mass))
+			# Limit prediction to slightly more than one orbit
+			prediction_time = min(prediction_time, orbital_period * 1.1)
+	
 	var sim_pos = global_position
 	var sim_vel = velocity
-	var time_step = trajectory_prediction_time / trajectory_points
+	var time_step = prediction_time / trajectory_points
 	
 	var planet_data: Array = []
 	var ref_body_idx: int = -1
@@ -482,12 +494,26 @@ func _calculate_nbody_trajectory() -> void:
 	var initial_ref_pos: Vector2 = planet_data[ref_body_idx]["pos"] if use_relative_coords else Vector2.ZERO
 	
 	# Store first point relative to reference body
+	var first_relative_pos: Vector2
 	if use_relative_coords:
-		_nbody_trajectory.append(sim_pos - initial_ref_pos)
+		first_relative_pos = sim_pos - initial_ref_pos
+		_nbody_trajectory.append(first_relative_pos)
 	else:
+		first_relative_pos = sim_pos
 		_nbody_trajectory.append(sim_pos)
 	
+	# Track orbit completion for stable orbits
+	var is_stable_orbit = not _cached_orbital_elements.is_empty() and _cached_orbital_elements.get("eccentricity", 1.0) < 0.98
+	var min_points_before_orbit_check = 20  # Don't check too early
+	var orbit_completed = false
+	var prev_angle: float = 0.0
+	var total_angle: float = 0.0
+	
 	for i in range(trajectory_points):
+		if orbit_completed:
+			break
+			
+		# Find which SOI the simulated ship is inside FIRST (using current positions)
 		# Find which SOI the simulated ship is inside FIRST (using current positions)
 		# This matches how the actual physics determines SOI before applying gravity
 		var sim_soi_idx: int = -1
@@ -578,6 +604,26 @@ func _calculate_nbody_trajectory() -> void:
 			break
 		
 		_nbody_trajectory.append(point_to_store)
+		
+		# Check if we've completed one orbit (for stable orbits only)
+		if is_stable_orbit and i > min_points_before_orbit_check and use_relative_coords:
+			# Track total angle traversed around the reference body
+			var current_angle = atan2(point_to_store.y, point_to_store.x)
+			if i == min_points_before_orbit_check + 1:
+				prev_angle = current_angle
+			else:
+				var angle_diff = current_angle - prev_angle
+				# Normalize angle difference to [-PI, PI]
+				while angle_diff > PI:
+					angle_diff -= TAU
+				while angle_diff < -PI:
+					angle_diff += TAU
+				total_angle += angle_diff
+				prev_angle = current_angle
+				
+				# Stop if we've gone around once (with some tolerance)
+				if abs(total_angle) >= TAU * 0.95:
+					orbit_completed = true
 
 
 ## Draw the n-body trajectory as a dashed/different colored line
@@ -590,6 +636,35 @@ func _draw_nbody_trajectory() -> void:
 	if central_bodies.size() < 2:
 		return
 	
+	# Check if trajectory significantly deviates from Keplerian ellipse
+	# If in a stable orbit with minimal perturbations, don't draw the n-body line
+	if not _cached_orbital_elements.is_empty() and _cached_orbit_ref_body != null:
+		var ecc = _cached_orbital_elements.get("eccentricity", 1.0)
+		if ecc < 0.98:
+			# Compare n-body trajectory points to expected Keplerian positions
+			var sma = _cached_orbital_elements.get("semi_major_axis", 0.0)
+			var arg_periapsis = _cached_orbital_elements.get("argument_of_periapsis", 0.0)
+			var max_deviation: float = 0.0
+			var check_interval = max(1, _nbody_trajectory.size() / 10)  # Check ~10 points
+			
+			for i in range(0, _nbody_trajectory.size(), check_interval):
+				var nbody_pos = _nbody_trajectory[i]  # Already relative to ref body
+				var nbody_dist = nbody_pos.length()
+				var nbody_angle = atan2(nbody_pos.y, nbody_pos.x)
+				
+				# Calculate expected Keplerian distance at this angle
+				var true_anomaly = nbody_angle - arg_periapsis
+				var p = sma * (1.0 - ecc * ecc)
+				var expected_dist = p / (1.0 + ecc * cos(true_anomaly))
+				
+				var deviation = abs(nbody_dist - expected_dist)
+				max_deviation = max(max_deviation, deviation)
+			
+			# Only draw if deviation exceeds threshold (relative to semi-major axis)
+			var deviation_threshold = sma * 0.05  # 5% of orbit size
+			if max_deviation < deviation_threshold:
+				return  # Trajectory matches ellipse closely, no need to draw
+	
 	# Get current reference body position for converting relative coords to world
 	var ref_body_pos = Vector2.ZERO
 	if _cached_orbit_ref_body != null:
@@ -600,9 +675,15 @@ func _draw_nbody_trajectory() -> void:
 	var line_width = 1.0 * draw_scale
 	
 	# Draw as dashed line to distinguish from the ellipse
+	# Use a longer dash pattern to avoid circle-like artifacts
+	var dash_length = 4  # Draw 4 segments
+	var gap_length = 2   # Skip 2 segments
+	var pattern_length = dash_length + gap_length
+	
 	for i in range(point_count - 1):
-		# Skip every other segment to create dashed effect
-		if i % 3 == 0:
+		# Create dashed pattern: draw dash_length, skip gap_length
+		var pattern_pos = i % pattern_length
+		if pattern_pos >= dash_length:
 			continue
 		
 		# Convert relative positions to world positions, then to local for drawing
