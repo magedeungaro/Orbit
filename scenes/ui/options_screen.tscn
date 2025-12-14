@@ -50,6 +50,12 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "Touch Controls: Auto"
 
+[node name="SOIVisibilityButton" type="Button" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(320, 55)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "SOI Display: On"
+
 [node name="Spacer2" type="Control" parent="CenterContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 15)
 layout_mode = 2

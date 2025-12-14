@@ -2,6 +2,8 @@ extends CanvasLayer
 
 var orbiting_body: CharacterBody2D
 var speed_label: Label
+var relative_speed_label: Label
+var reference_body_label: Label
 var info_label: Label
 var fuel_label: Label
 var fuel_bar: ProgressBar
@@ -36,6 +38,8 @@ func _create_ui() -> void:
 	
 	var vbox = VBoxContainer.new()
 	vbox.name = "VBoxContainer"
+	# Set a fixed minimum width to prevent resizing when numbers change
+	vbox.custom_minimum_size = Vector2(300, 0)
 	margin.add_child(vbox)
 	
 	fuel_label = Label.new()
@@ -43,11 +47,13 @@ func _create_ui() -> void:
 	fuel_label.add_theme_font_override("font", audiowide_font)
 	fuel_label.add_theme_font_size_override("font_size", 24)
 	fuel_label.add_theme_color_override("font_color", Color.WHITE)
+	fuel_label.custom_minimum_size = Vector2(280, 0)
 	vbox.add_child(fuel_label)
 	
 	fuel_bar = ProgressBar.new()
 	fuel_bar.name = "FuelBar"
 	fuel_bar.custom_minimum_size = Vector2(280, 28)
+	fuel_bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	fuel_bar.max_value = 100
 	fuel_bar.value = 100
 	fuel_bar.show_percentage = false
@@ -78,13 +84,31 @@ func _create_ui() -> void:
 	speed_label.add_theme_font_override("font", audiowide_font)
 	speed_label.add_theme_font_size_override("font_size", 24)
 	speed_label.add_theme_color_override("font_color", Color.WHITE)
+	speed_label.custom_minimum_size = Vector2(280, 0)
 	vbox.add_child(speed_label)
+	
+	relative_speed_label = Label.new()
+	relative_speed_label.name = "RelativeSpeedLabel"
+	relative_speed_label.add_theme_font_override("font", audiowide_font)
+	relative_speed_label.add_theme_font_size_override("font_size", 24)
+	relative_speed_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	relative_speed_label.custom_minimum_size = Vector2(280, 0)
+	vbox.add_child(relative_speed_label)
+	
+	reference_body_label = Label.new()
+	reference_body_label.name = "ReferenceBodyLabel"
+	reference_body_label.add_theme_font_override("font", audiowide_font)
+	reference_body_label.add_theme_font_size_override("font_size", 20)
+	reference_body_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	reference_body_label.custom_minimum_size = Vector2(280, 0)
+	vbox.add_child(reference_body_label)
 	
 	info_label = Label.new()
 	info_label.name = "InfoLabel"
 	info_label.add_theme_font_override("font", audiowide_font)
 	info_label.add_theme_font_size_override("font_size", 20)
 	info_label.add_theme_color_override("font_color", Color.WHITE)
+	info_label.custom_minimum_size = Vector2(280, 0)
 	vbox.add_child(info_label)
 	
 	goal_indicator = GoalIndicator.new()
@@ -115,6 +139,19 @@ func _process(_delta: float) -> void:
 	var current_speed = orbiting_body.velocity.length()
 	speed_label.text = "Speed: %.1f" % current_speed
 	
+	# Calculate and display relative velocity and reference body
+	var ref_body = orbiting_body._cached_orbit_ref_body
+	var relative_velocity = orbiting_body.velocity
+	var ref_body_name = "None"
+	
+	if ref_body != null:
+		ref_body_name = ref_body.name
+		if "velocity" in ref_body:
+			relative_velocity = orbiting_body.velocity - ref_body.velocity
+	
+	relative_speed_label.text = "Relative Speed: %.1f" % relative_velocity.length()
+	reference_body_label.text = "Reference: %s" % ref_body_name
+	
 	var thrust_angle = orbiting_body.thrust_angle
 	var orientation_mode = orbiting_body.get_orientation_lock_name()
 	
@@ -142,7 +179,6 @@ class GoalIndicator extends Control:
 		var ship_pos = hud.orbiting_body.global_position
 		var target_pos = hud.target_body.global_position
 		var to_target = target_pos - ship_pos
-		var distance = to_target.length()
 		var direction = to_target.normalized()
 		
 		var camera = hud.camera
@@ -157,15 +193,40 @@ class GoalIndicator extends Control:
 		var is_on_screen = abs(target_relative.x) < half_size.x and abs(target_relative.y) < half_size.y
 		
 		var arrow_color = Color(0.3, 1.0, 0.5, 0.9)
-		var margin = 60.0
 		
 		if is_on_screen:
+			# Draw small arrow pointing to target center
 			var screen_pos = screen_center + (target_relative * zoom)
-			draw_arc(screen_pos, 40, 0, TAU, 32, arrow_color, 3.0)
-			var dist_text = "%.0f" % distance
-			draw_string(ThemeDB.fallback_font, screen_pos + Vector2(-20, -50), dist_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 16, arrow_color)
-			draw_string(ThemeDB.fallback_font, screen_pos + Vector2(-30, -35), "GOAL", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, arrow_color)
+			var arrow_length = 25.0
+			var arrow_head_size = 8.0
+			
+			# Get planet radius from collision shape
+			var planet_radius = 156.0  # Default
+			for child in hud.target_body.get_children():
+				if child is CollisionShape2D and child.shape is CircleShape2D:
+					planet_radius = child.shape.radius
+					break
+			
+			# Convert planet radius to screen space and add small gap
+			var screen_radius = planet_radius * zoom.x
+			var gap = 10.0  # Small gap between planet edge and arrow
+			var offset_from_center = screen_radius + gap + arrow_length
+			
+			# Arrow points toward the planet center, starting from outside the planet
+			var arrow_start = screen_pos - direction * offset_from_center
+			var arrow_tip = screen_pos - direction * (screen_radius + gap)
+			
+			draw_line(arrow_start, arrow_tip, arrow_color, 2.0)
+			
+			var perp = Vector2(-direction.y, direction.x)
+			var head_left = arrow_tip - direction * arrow_head_size + perp * (arrow_head_size * 0.5)
+			var head_right = arrow_tip - direction * arrow_head_size - perp * (arrow_head_size * 0.5)
+			var arrow_head = PackedVector2Array([arrow_tip, head_left, head_right])
+			draw_colored_polygon(arrow_head, arrow_color)
 		else:
+			# Draw arrow on screen edge pointing to off-screen target
+			var margin = 60.0
+			
 			var arrow_pos = screen_center
 			var screen_bounds = Rect2(
 				Vector2(margin, margin),
@@ -214,7 +275,4 @@ class GoalIndicator extends Control:
 			var head_right = arrow_pos - direction * arrow_head_size - perp * (arrow_head_size * 0.6)
 			var arrow_head = PackedVector2Array([arrow_pos, head_left, head_right])
 			draw_colored_polygon(arrow_head, arrow_color)
-			
-			var text_offset = -direction * 45
-			var dist_text = "%.0f" % distance
-			draw_string(ThemeDB.fallback_font, arrow_base + text_offset + Vector2(-15, 5), dist_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 14, arrow_color)
+

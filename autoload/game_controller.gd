@@ -51,6 +51,7 @@ var next_level_button: Button
 var crash_restart_button: Button
 var back_button: Button
 var touch_controls_button: Button
+var soi_visibility_button: Button
 var level_select_back_button: Button
 var level_buttons: Array[Button] = []
 
@@ -80,9 +81,19 @@ var _level_select_context: LevelSelectContext = LevelSelectContext.MAIN_MENU
 var _ship_start_position: Vector2
 var _ship_start_velocity: Vector2
 
+# Persistent camera zoom (survives level changes/restarts)
+var _saved_zoom: float = 0.8  # Default zoom level
+
+# SOI visibility setting
+var soi_visible: bool = true
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	
+	# Connect to camera zoom events to persist zoom across levels
+	if Events:
+		Events.camera_zoom_changed.connect(_on_camera_zoom_changed)
 	
 	# Create UI layer for screens
 	ui_layer = CanvasLayer.new()
@@ -155,10 +166,12 @@ func _setup_ui_screens() -> void:
 	options_screen.visible = false
 	ui_layer.add_child(options_screen)
 	touch_controls_button = options_screen.get_node("CenterContainer/VBoxContainer/TouchControlsButton")
+	soi_visibility_button = options_screen.get_node("CenterContainer/VBoxContainer/SOIVisibilityButton")
 	back_button = options_screen.get_node("CenterContainer/VBoxContainer/BackButton")
 	touch_controls_button.pressed.connect(_on_touch_controls_pressed)
+	soi_visibility_button.pressed.connect(_on_soi_visibility_pressed)
 	back_button.pressed.connect(_on_back_pressed)
-	_setup_focus_neighbors(touch_controls_button, back_button)
+	_setup_focus_neighbors_three(touch_controls_button, soi_visibility_button, back_button)
 	
 	_setup_pause_screen()
 	_setup_level_select_screen()
@@ -476,6 +489,7 @@ func show_options_screen() -> void:
 	start_screen.visible = false
 	options_screen.visible = true
 	_update_touch_controls_button_text()
+	_update_soi_visibility_button_text()
 	touch_controls_button.grab_focus()
 
 
@@ -484,6 +498,7 @@ func show_options_from_pause() -> void:
 	pause_screen.visible = false
 	options_screen.visible = true
 	_update_touch_controls_button_text()
+	_update_soi_visibility_button_text()
 	touch_controls_button.grab_focus()
 
 
@@ -669,6 +684,10 @@ func _find_level_references() -> void:
 	# Update camera with new ship reference
 	if camera and camera.has_method("set_follow_target"):
 		camera.set_follow_target(orbiting_body)
+	
+	# Restore saved zoom level
+	if camera:
+		camera.zoom = Vector2(_saved_zoom, _saved_zoom)
 
 
 func _initialize_ship(level_config: LevelConfig) -> void:
@@ -678,9 +697,9 @@ func _initialize_ship(level_config: LevelConfig) -> void:
 	orbiting_body.current_fuel = level_config.max_fuel
 	orbiting_body.max_fuel = level_config.max_fuel
 	orbiting_body.stable_orbit_time_required = level_config.stable_orbit_time
-	orbiting_body.velocity = _ship_start_velocity
+	# Use ship's own initial_velocity export instead of level config
+	orbiting_body.velocity = orbiting_body.initial_velocity
 	orbiting_body.thrust_angle = 0.0
-	orbiting_body.orbit_trail.clear()
 	orbiting_body.time_in_stable_orbit = 0.0
 	orbiting_body.orbit_distance_samples.clear()
 	orbiting_body.total_orbit_angle = 0.0
@@ -710,6 +729,13 @@ func _update_touch_controls_button_text() -> void:
 				pref_text = "On"
 	
 	touch_controls_button.text = "Touch Controls: " + pref_text
+
+
+func _update_soi_visibility_button_text() -> void:
+	if not soi_visibility_button:
+		return
+	var state_text := "On" if soi_visible else "Off"
+	soi_visibility_button.text = "SOI Display: " + state_text
 
 
 func _on_start_pressed() -> void:
@@ -802,6 +828,17 @@ func _on_touch_controls_pressed() -> void:
 	if touch_controls_manager and touch_controls_manager.has_method("cycle_preference"):
 		touch_controls_manager.cycle_preference()
 		_update_touch_controls_button_text()
+
+
+func _on_soi_visibility_pressed() -> void:
+	soi_visible = not soi_visible
+	_update_soi_visibility_button_text()
+	if Events:
+		Events.soi_visibility_changed.emit(soi_visible)
+
+
+func _on_camera_zoom_changed(zoom_level: float) -> void:
+	_saved_zoom = zoom_level
 
 
 func _on_ship_exploded() -> void:

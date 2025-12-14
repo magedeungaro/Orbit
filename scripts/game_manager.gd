@@ -607,7 +607,6 @@ func load_current_level() -> void:
 		orbiting_body.velocity = _ship_start_velocity
 		orbiting_body.global_position = _ship_start_position
 		orbiting_body.thrust_angle = 0.0
-		orbiting_body.orbit_trail.clear()
 		orbiting_body.time_in_stable_orbit = 0.0
 		orbiting_body.orbit_distance_samples.clear()
 		orbiting_body.total_orbit_angle = 0.0
@@ -639,7 +638,6 @@ func _reset_ship_default() -> void:
 		orbiting_body.velocity = Vector2.ZERO
 		orbiting_body.global_position = Vector2(300, 300)
 		orbiting_body.thrust_angle = 0.0
-		orbiting_body.orbit_trail.clear()
 		orbiting_body.time_in_stable_orbit = 0.0
 		orbiting_body.orbit_distance_samples.clear()
 		orbiting_body.total_orbit_angle = 0.0

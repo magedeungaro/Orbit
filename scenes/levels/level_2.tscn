@@ -1,11 +1,11 @@
-[gd_scene load_steps=12 format=3 uid="uid://dmhynikb31t68"]
+[gd_scene load_steps=13 format=3 uid="uid://dmhynikb31t68"]
 
-[ext_resource type="Script" path="res://scripts/level_config.gd" id="1_config"]
-[ext_resource type="Script" path="res://scripts/camera_follow.gd" id="2_camera"]
-[ext_resource type="Script" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
+[ext_resource type="Script" uid="uid://csvg6f6vuqqfe" path="res://scripts/level_config.gd" id="1_config"]
+[ext_resource type="Script" uid="uid://derr4cln3we0j" path="res://scripts/camera_follow.gd" id="2_camera"]
+[ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/orbit_visualization.gd" id="3_orbit_vis"]
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="4_bg"]
-[ext_resource type="Script" path="res://scripts/central_body.gd" id="5_planet"]
-[ext_resource type="PackedScene" uid="uid://ship_prefab_scene" path="res://scenes/prefabs/ship.tscn" id="6_ship"]
+[ext_resource type="Script" uid="uid://0baglt5002m1" path="res://scripts/central_body.gd" id="5_planet"]
+[ext_resource type="PackedScene" path="res://scenes/prefabs/ship.tscn" id="6_ship"]
 [ext_resource type="Texture2D" uid="uid://bvev41whwp4ii" path="res://Assets/Sprites/Planet 1.PNG" id="7_tex1"]
 [ext_resource type="Texture2D" uid="uid://fyxnlyles8s2" path="res://Assets/Sprites/Planet 2.PNG" id="8_tex2"]
 [ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="9_tex3"]
@@ -25,8 +25,6 @@ level_id = 2
 level_name = "Gravity Assist"
 description = "Use planetary gravity to reach your destination"
 max_fuel = 800.0
-ship_start_velocity = Vector2(0, 0)
-stable_orbit_time = 10.0
 
 [node name="World" type="Node2D" parent="."]
 
@@ -58,8 +56,8 @@ position = Vector2(568, 243)
 [node name="Planet1" type="Area2D" parent="Planets"]
 position = Vector2(1312, 768)
 script = ExtResource("5_planet")
-mass = 25.0
-is_target = false
+mass = 5.0
+is_static = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Planet1"]
 shape = SubResource("CircleShape2D_planet1")
@@ -70,8 +68,8 @@ texture = ExtResource("7_tex1")
 [node name="Planet2" type="Area2D" parent="Planets"]
 position = Vector2(2312, 1568)
 script = ExtResource("5_planet")
-mass = 30.0
-is_target = false
+mass = 5.0
+is_static = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Planet2"]
 shape = SubResource("CircleShape2D_planet2")
@@ -82,7 +80,8 @@ texture = ExtResource("8_tex2")
 [node name="TargetPlanet" type="Area2D" parent="Planets"]
 position = Vector2(3512, 1168)
 script = ExtResource("5_planet")
-mass = 20.0
+mass = 5.0
+is_static = true
 is_target = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/TargetPlanet"]

@@ -28,6 +28,7 @@ signal camera_zoom_changed(zoom_level: float)
 
 # Settings events
 signal touch_controls_changed(enabled: bool)
+signal soi_visibility_changed(visible: bool)
 signal settings_saved
 signal settings_loaded
 

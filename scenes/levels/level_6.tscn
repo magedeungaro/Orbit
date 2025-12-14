@@ -1,0 +1,101 @@
+[gd_scene load_steps=11 format=3 uid="uid://dlofysuttv8wk"]
+
+[ext_resource type="Script" uid="uid://csvg6f6vuqqfe" path="res://scripts/level_config.gd" id="1_b6i88"]
+[ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="2_e18e5"]
+[ext_resource type="Script" uid="uid://derr4cln3we0j" path="res://scripts/camera_follow.gd" id="3_m5qie"]
+[ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/orbit_visualization.gd" id="4_kydov"]
+[ext_resource type="PackedScene" path="res://scenes/prefabs/ship.tscn" id="5_uwlxl"]
+[ext_resource type="Script" uid="uid://0baglt5002m1" path="res://scripts/central_body.gd" id="6_4wfvb"]
+[ext_resource type="Texture2D" uid="uid://bvev41whwp4ii" path="res://Assets/Sprites/Planet 1.PNG" id="7_tqv5a"]
+[ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="8_ppjov"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_sun"]
+radius = 200.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_outer"]
+radius = 140.0
+
+[node name="Level6" type="Node2D"]
+position = Vector2(-1, 0)
+script = ExtResource("1_b6i88")
+level_id = 6
+level_name = "Solar System (Moon)"
+description = "Navigate through a dynamic solar system with orbiting planets and orbit the moon."
+max_fuel = 800.0
+ship_start_velocity = Vector2(0, -410)
+stable_orbit_time = 12.0
+
+[node name="World" type="Node2D" parent="."]
+
+[node name="BackgroundLayer" type="CanvasLayer" parent="World"]
+layer = -1
+
+[node name="TextureRect" type="TextureRect" parent="World/BackgroundLayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_e18e5")
+stretch_mode = 1
+
+[node name="Camera2D" type="Camera2D" parent="World"]
+script = ExtResource("3_m5qie")
+
+[node name="OrbitVisualization" type="Node2D" parent="World"]
+script = ExtResource("4_kydov")
+
+[node name="Player" type="Node2D" parent="."]
+
+[node name="Ship" parent="Player" instance=ExtResource("5_uwlxl")]
+position = Vector2(1500, 3000)
+initial_velocity = Vector2(0, 410)
+thrust_force = 60.0
+boundary_left = -10000.0
+boundary_top = -10000.0
+boundary_right = 50000.0
+boundary_bottom = 50000.0
+
+[node name="Planets" type="Node2D" parent="."]
+
+[node name="Sun" type="Area2D" parent="Planets"]
+position = Vector2(3000, 3000)
+script = ExtResource("6_4wfvb")
+mass = 500.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Sun"]
+shape = SubResource("CircleShape2D_sun")
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/Sun"]
+scale = Vector2(1.5, 1.5)
+texture = ExtResource("7_tqv5a")
+
+[node name="OuterPlanet" type="Area2D" parent="Planets"]
+position = Vector2(11000, 3001)
+script = ExtResource("6_4wfvb")
+mass = 50.0
+orbits_around_path = NodePath("../Sun")
+use_custom_orbit = true
+orbit_path_color = Color(0.5019608, 0.69803923, 1, 0.5294118)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/OuterPlanet"]
+shape = SubResource("CircleShape2D_outer")
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/OuterPlanet"]
+texture = ExtResource("8_ppjov")
+
+[node name="OuterPlanet2" type="Area2D" parent="Planets"]
+position = Vector2(12384, 3001)
+script = ExtResource("6_4wfvb")
+mass = 5.0
+orbits_around_path = NodePath("../OuterPlanet")
+use_custom_orbit = true
+orbit_semi_major_axis = 2281.0
+orbit_path_color = Color(0.5019608, 0.69803923, 1, 0.5294118)
+is_target = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/OuterPlanet2"]
+shape = SubResource("CircleShape2D_outer")
+
+[node name="Sprite2D" type="Sprite2D" parent="Planets/OuterPlanet2"]
+texture = ExtResource("8_ppjov")

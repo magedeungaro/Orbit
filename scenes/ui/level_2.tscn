@@ -31,9 +31,17 @@ position = Vector2(502, 769)
 [node name="Planets" type="Node2D" parent="."]
 
 [node name="Planet1" type="CharacterBody2D" parent="Planets"]
-position = Vector2(1312, 768)
+position = Vector2(1313, 768)
+velocity = null
 script = ExtResource("2_planet")
 mass = 25.0
+is_static = null
+orbits_around_path = null
+initial_velocity = null
+auto_orbital_velocity = null
+orbital_gravitational_constant = null
+orbit_counter_clockwise = null
+soi_multiplier = null
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Planet1"]
 shape = SubResource("CircleShape2D_planet1")
@@ -43,8 +51,16 @@ texture = ExtResource("3_tex1")
 
 [node name="Planet2" type="CharacterBody2D" parent="Planets"]
 position = Vector2(2312, 1568)
+velocity = null
 script = ExtResource("2_planet")
 mass = 30.0
+is_static = null
+orbits_around_path = null
+initial_velocity = null
+auto_orbital_velocity = null
+orbital_gravitational_constant = null
+orbit_counter_clockwise = null
+soi_multiplier = null
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Planet2"]
 shape = SubResource("CircleShape2D_planet2")
@@ -54,8 +70,16 @@ texture = ExtResource("4_tex2")
 
 [node name="TargetPlanet" type="CharacterBody2D" parent="Planets"]
 position = Vector2(3512, 1168)
+velocity = null
 script = ExtResource("2_planet")
+is_static = null
+orbits_around_path = null
+initial_velocity = null
+auto_orbital_velocity = null
+orbital_gravitational_constant = null
+orbit_counter_clockwise = null
 is_target = true
+soi_multiplier = null
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/TargetPlanet"]
 shape = SubResource("CircleShape2D_target")
