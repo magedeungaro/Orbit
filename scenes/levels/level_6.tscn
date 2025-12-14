@@ -16,6 +16,7 @@ radius = 200.0
 radius = 140.0
 
 [node name="Level6" type="Node2D"]
+position = Vector2(-1, 0)
 script = ExtResource("1_b6i88")
 level_id = 6
 level_name = "Solar System (Moon)"
@@ -86,10 +87,10 @@ texture = ExtResource("8_ppjov")
 [node name="OuterPlanet2" type="Area2D" parent="Planets"]
 position = Vector2(12384, 3001)
 script = ExtResource("6_4wfvb")
-mass = 2.0
+mass = 5.0
 orbits_around_path = NodePath("../OuterPlanet")
 use_custom_orbit = true
-orbit_semi_major_axis = 1772.0
+orbit_semi_major_axis = 2281.0
 orbit_path_color = Color(0.5019608, 0.69803923, 1, 0.5294118)
 is_target = true
 
