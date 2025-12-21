@@ -32,8 +32,10 @@ var explosion_duration: float = 1.0
 ## Trajectory visualization settings
 var show_sphere_of_influence: bool = true
 var show_trajectory: bool = true
+var show_encounter_prediction: bool = true  ## Show predicted next encounter orbit
 var trajectory_color: Color = Color.YELLOW
 var trajectory_points: int = 128
+var encounter_orbit_color: Color = Color(1.0, 0.5, 0.0, 0.7)  ## Orange for encounter
 
 ## Runtime state
 var current_fuel: float = 1000.0
@@ -56,6 +58,10 @@ var _cached_orbital_elements: OrbitalMechanics.OrbitalElements = null
 var _is_thrusting: bool = false
 var _was_thrusting: bool = false
 var _orbit_needs_recalc: bool = true
+
+## Encounter prediction (KSP-style patched conics)
+var _max_prediction_time: float = 300.0  ## How far ahead to predict (seconds)
+var _encounter_locked: bool = false  ## Lock prediction once found to prevent jumping
 
 ## Compatibility property - exposes reference body from patched conics state
 var _cached_orbit_ref_body: Node2D:
@@ -139,7 +145,11 @@ func _physics_process(delta: float) -> void:
 	# Check orbit stability for win condition
 	_check_orbit_stability(delta)
 	
+	# Update encounter predictions periodically (or immediately when thrusting)
+	_update_encounter_predictions(delta)
+	
 	queue_redraw()
+
 
 
 ## Update the patched conics state - determines current SOI and reference body
@@ -155,6 +165,9 @@ func _update_patched_conics_state() -> void:
 	# Mark orbit for recalculation if reference body changed
 	if _patched_conics_state.reference_body != old_ref_body:
 		_orbit_needs_recalc = true
+		# Reset encounter prediction when entering a new SOI
+		_encounter_locked = false
+		_next_encounter = null
 
 
 ## Apply gravity using the patched conics approximation
@@ -349,12 +362,16 @@ func _draw() -> void:
 	
 	_was_thrusting = _is_thrusting
 	
-	# Draw the Keplerian trajectory (ellipse or hyperbola)
+	# Draw the current Keplerian trajectory (ellipse or hyperbola)
 	if _cached_orbital_elements != null and _cached_orbital_elements.is_valid:
 		if _cached_orbital_elements.eccentricity < 1.0:
 			_draw_trajectory_ellipse()
 		else:
 			_draw_trajectory_hyperbola()
+	
+	# Draw predicted next encounter orbit
+	if show_encounter_prediction:
+		_draw_next_encounter()
 
 
 ## Update cached orbital elements using patched conics
@@ -589,6 +606,189 @@ func _draw_apsis_marker(pos: Vector2, direction: Vector2, color: Color, label: S
 	draw_string(ThemeDB.fallback_font, Vector2(-8, 4), label, HORIZONTAL_ALIGNMENT_CENTER, -1, 14, color)
 	draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
 
+
+# =============================================================================
+# ENCOUNTER PREDICTION
+# =============================================================================
+
+## Cached encounter prediction result
+var _next_encounter: OrbitalMechanics.EncounterPrediction = null
+
+## Update encounter predictions - only recalculate when orbit changes (thrust)
+func _update_encounter_predictions(delta: float) -> void:
+	# Only recalculate if:
+	# 1. Player is thrusting (orbit is changing)
+	# 2. We don't have a locked encounter yet
+	# 3. The encounter time has passed (we missed it or completed it)
+	
+	var should_recalc = false
+	
+	if _is_thrusting:
+		# Player is changing orbit - need to recalculate
+		should_recalc = true
+		_encounter_locked = false
+	elif not _encounter_locked:
+		# No locked encounter yet - try to find one
+		should_recalc = true
+	elif _next_encounter != null and _next_encounter.has_encounter:
+		# Check if encounter time has passed
+		# Reduce encounter time each frame to track when it passes
+		_next_encounter.encounter_time -= delta
+		if _next_encounter.encounter_time <= 0:
+			# Encounter passed - clear it and look for new one
+			_next_encounter = null
+			_encounter_locked = false
+			should_recalc = true
+	
+	if should_recalc:
+		var ref_body = _patched_conics_state.reference_body if _patched_conics_state else null
+		
+		var prediction = OrbitalMechanics.predict_next_encounter(
+			global_position,
+			velocity,
+			ref_body,
+			central_bodies,
+			_max_prediction_time,
+			0.25,  # time step for sampling (adaptive step will reduce further for fast bodies)
+			gravitational_constant
+		)
+		
+		if prediction.has_encounter:
+			_next_encounter = prediction
+			_encounter_locked = true  # Lock this prediction
+		else:
+			_next_encounter = null
+			_encounter_locked = false
+
+
+## Draw predicted next encounter orbit
+func _draw_next_encounter() -> void:
+	if _next_encounter == null or not _next_encounter.has_encounter:
+		return
+	
+	if _next_encounter.next_orbit_elements == null or not _next_encounter.next_orbit_elements.is_valid:
+		return
+	
+	var encounter_body = _next_encounter.encounter_body
+	if encounter_body == null:
+		return
+	
+	var elements = _next_encounter.next_orbit_elements
+	var draw_scale = _get_draw_scale()
+	var line_width = 1.5 * draw_scale
+	
+	# Use configured encounter orbit color
+	var orbit_color = encounter_orbit_color
+	
+	# Calculate body position at encounter using reference body's CURRENT position
+	# This makes the orbit visualization move with the reference body (e.g., planet moving around sun)
+	var ref_body = _next_encounter.reference_body
+	var ref_body_pos = ref_body.global_position if ref_body != null else Vector2.ZERO
+	var body_pos_at_encounter = ref_body_pos + _next_encounter.encounter_body_pos_relative
+	
+	# Draw the orbit at the PREDICTED FUTURE position of the body
+	var ref_pos = body_pos_at_encounter
+	var soi_radius = _next_encounter.next_soi_radius
+	
+	# Generate trajectory points
+	var points: PackedVector2Array = []
+	var num_points = trajectory_points
+	
+	var e = elements.eccentricity
+	var a = elements.semi_major_axis
+	var omega = elements.argument_of_periapsis
+	
+	if e < 1.0:
+		# Elliptical orbit - draw full orbit or clip to SOI
+		var start_anomaly: float = 0.0
+		var end_anomaly: float = TAU
+		
+		# Check if orbit exits SOI
+		if elements.apoapsis > soi_radius:
+			var p = a * (1.0 - e * e)
+			var cos_exit = (p / soi_radius - 1.0) / e
+			cos_exit = clamp(cos_exit, -1.0, 1.0)
+			var exit_anomaly = acos(cos_exit)
+			start_anomaly = -exit_anomaly
+			end_anomaly = exit_anomaly
+		
+		for i in range(num_points + 1):
+			var t_param = float(i) / float(num_points)
+			var nu = start_anomaly + t_param * (end_anomaly - start_anomaly)
+			var p = a * (1.0 - e * e)
+			var r = p / (1.0 + e * cos(nu))
+			if r > 0 and is_finite(r):
+				var pos = Vector2(r * cos(nu + omega), r * sin(nu + omega))
+				points.append(pos)
+	else:
+		# Hyperbolic orbit - draw within SOI
+		var a_abs = abs(a)
+		var p = a_abs * (e * e - 1.0)
+		
+		if p > 0:
+			# Find asymptote limit
+			var asymptote_limit = acos(-1.0 / e) * 0.95
+			
+			# Find SOI exit angle
+			var cos_exit = (p / soi_radius - 1.0) / e
+			cos_exit = clamp(cos_exit, -1.0, 1.0)
+			var soi_limit = acos(cos_exit)
+			
+			var max_anomaly = min(asymptote_limit, soi_limit)
+			
+			for i in range(num_points + 1):
+				var t_param = float(i) / float(num_points)
+				var nu = -max_anomaly + t_param * (2.0 * max_anomaly)
+				var r = p / (1.0 + e * cos(nu))
+				if r > 0 and is_finite(r) and r < soi_radius * 1.5:
+					var pos = Vector2(r * cos(nu + omega), r * sin(nu + omega))
+					points.append(pos)
+	
+	# Draw the trajectory at the predicted encounter position
+	if points.size() >= 2:
+		for i in range(points.size() - 1):
+			var world_p1 = ref_pos + points[i]
+			var world_p2 = ref_pos + points[i + 1]
+			draw_line(to_local(world_p1), to_local(world_p2), orbit_color, line_width)
+	
+	# Draw periapsis marker at predicted position
+	var periapsis_color = Color(1.0, 0.6, 0.3, 0.9)
+	var periapsis_pos = ref_pos + Vector2(elements.periapsis, 0).rotated(omega)
+	var periapsis_local = to_local(periapsis_pos)
+	var periapsis_dir = periapsis_local.normalized() if periapsis_local.length() > 1 else Vector2.RIGHT
+	_draw_apsis_marker(periapsis_local, periapsis_dir, periapsis_color, "Pe2", draw_scale)
+	
+	# Draw encounter entry marker (SOI entry point at predicted body position)
+	var entry_pos = _next_encounter.relative_position
+	var entry_world = ref_pos + entry_pos
+	var entry_local = to_local(entry_world)
+	
+	var marker_size = 8.0 * draw_scale
+	var marker_color = Color(0.3, 1.0, 0.5, 0.9)
+	
+	# Diamond shape for encounter entry
+	var diamond_points: PackedVector2Array = [
+		entry_local + Vector2(0, -marker_size),
+		entry_local + Vector2(marker_size, 0),
+		entry_local + Vector2(0, marker_size),
+		entry_local + Vector2(-marker_size, 0),
+		entry_local + Vector2(0, -marker_size)
+	]
+	
+	for i in range(diamond_points.size() - 1):
+		draw_line(diamond_points[i], diamond_points[i + 1], marker_color, 2.0 * draw_scale)
+	
+	# Draw encounter time label
+	var time_label = "Enc: %.1fs" % _next_encounter.encounter_time
+	draw_set_transform(entry_local + Vector2(12 * draw_scale, -12 * draw_scale), -rotation, Vector2(draw_scale, draw_scale))
+	draw_string(ThemeDB.fallback_font, Vector2.ZERO, time_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, marker_color)
+	draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
+	
+	# Draw encounter body name
+	var body_name = encounter_body.name if encounter_body else "?"
+	draw_set_transform(entry_local + Vector2(12 * draw_scale, 4 * draw_scale), -rotation, Vector2(draw_scale, draw_scale))
+	draw_string(ThemeDB.fallback_font, Vector2.ZERO, body_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, orbit_color)
+	draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
 
 # =============================================================================
 # ORIENTATION LOCK

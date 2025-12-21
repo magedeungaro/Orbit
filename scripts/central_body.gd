@@ -22,8 +22,6 @@ class_name Planet
 @export var initial_velocity: Vector2 = Vector2.ZERO
 ## Automatically calculate orbital velocity based on distance to parent
 @export var auto_orbital_velocity: bool = true
-## Gravitational constant for orbital calculations
-@export var orbital_gravitational_constant: float = 500000.0
 ## Direction of orbit: true = counter-clockwise, false = clockwise
 @export var orbit_counter_clockwise: bool = true
 
@@ -168,7 +166,7 @@ func _initialize_orbit() -> void:
 			
 			if distance > 0:
 				# v = sqrt(G * M / r) for circular orbit
-				var orbital_speed = sqrt(orbital_gravitational_constant * orbits_around.mass / distance)
+				var orbital_speed = sqrt(OrbitalMechanics.GRAVITATIONAL_CONSTANT * orbits_around.mass / distance)
 				
 				# Calculate perpendicular direction for orbital velocity
 				var perpendicular = direction_to_parent.normalized().rotated(PI / 2 if orbit_counter_clockwise else -PI / 2)
@@ -188,7 +186,7 @@ func _initialize_custom_orbit() -> void:
 	if orbits_around == null:
 		return
 	
-	var mu = orbital_gravitational_constant * orbits_around.mass
+	var mu = OrbitalMechanics.GRAVITATIONAL_CONSTANT * orbits_around.mass
 	var a = orbit_semi_major_axis
 	var e = orbit_eccentricity
 	var omega = deg_to_rad(orbit_argument_of_periapsis)  # Argument of periapsis
@@ -271,7 +269,7 @@ func _apply_gravity(delta: float) -> void:
 		var distance = direction_to_parent.length()
 		
 		if distance > 1.0:
-			var gravitational_acceleration = (orbital_gravitational_constant * orbits_around.mass) / (distance * distance)
+			var gravitational_acceleration = (OrbitalMechanics.GRAVITATIONAL_CONSTANT * orbits_around.mass) / (distance * distance)
 			velocity += direction_to_parent.normalized() * gravitational_acceleration * delta
 		
 		# "Ride along" logic: if our parent also orbits something (grandparent),
@@ -283,9 +281,7 @@ func _apply_gravity(delta: float) -> void:
 			var dist_to_grandparent = dir_parent_to_grandparent.length()
 			
 			if dist_to_grandparent > 1.0:
-				# Use parent's gravitational constant for consistency
-				var parent_g_const = orbits_around.orbital_gravitational_constant
-				var grandparent_accel = (parent_g_const * grandparent.mass) / (dist_to_grandparent * dist_to_grandparent)
+				var grandparent_accel = (OrbitalMechanics.GRAVITATIONAL_CONSTANT * grandparent.mass) / (dist_to_grandparent * dist_to_grandparent)
 				# Apply same acceleration to this moon that the parent planet experiences
 				velocity += dir_parent_to_grandparent.normalized() * grandparent_accel * delta
 
