@@ -30,7 +30,6 @@ var fuel_consumption_rate: float = 50.0
 var explosion_duration: float = 1.0
 
 ## Trajectory visualization settings
-var show_sphere_of_influence: bool = true
 var show_trajectory: bool = true
 var trajectory_color: Color = Color.YELLOW
 var trajectory_points: int = 128
@@ -56,11 +55,6 @@ var _cached_orbital_elements: OrbitalMechanics.OrbitalElements = null
 var _is_thrusting: bool = false
 var _was_thrusting: bool = false
 var _orbit_needs_recalc: bool = true
-
-## Compatibility property - exposes reference body from patched conics state
-var _cached_orbit_ref_body: Node2D:
-	get:
-		return _patched_conics_state.reference_body if _patched_conics_state else null
 
 ## Orientation lock
 enum OrientationLock { NONE, PROGRADE, RETROGRADE }
@@ -349,12 +343,10 @@ func _draw() -> void:
 	
 	_was_thrusting = _is_thrusting
 	
-	# Draw the Keplerian trajectory (ellipse or hyperbola)
+	# Draw the Keplerian trajectory ellipse
 	if _cached_orbital_elements != null and _cached_orbital_elements.is_valid:
-		if _cached_orbital_elements.eccentricity < 1.0:
+		if _cached_orbital_elements.eccentricity < 0.98:
 			_draw_trajectory_ellipse()
-		else:
-			_draw_trajectory_hyperbola()
 
 
 ## Update cached orbital elements using patched conics
@@ -457,111 +449,6 @@ func _draw_trajectory_ellipse() -> void:
 		
 		draw_circle(to_local(exit_pos1), 5.0 * draw_scale, exit_color)
 		draw_circle(to_local(exit_pos2), 5.0 * draw_scale, exit_color)
-
-
-## Draw a hyperbolic trajectory (eccentricity >= 1)
-func _draw_trajectory_hyperbola() -> void:
-	if _cached_orbital_elements == null or not _cached_orbital_elements.is_valid:
-		return
-	
-	var ref_body = _patched_conics_state.reference_body
-	if ref_body == null:
-		return
-	
-	var elements = _cached_orbital_elements
-	var ref_pos = ref_body.global_position
-	
-	var a = elements.semi_major_axis  # Negative for hyperbolic orbits
-	var e = elements.eccentricity
-	var omega = elements.argument_of_periapsis
-	
-	if not is_finite(a) or not is_finite(e):
-		return
-	
-	var soi_radius = _patched_conics_state.reference_soi
-	
-	# For hyperbolic orbits, a is negative. Use |a| for calculations.
-	var a_abs = abs(a)
-	
-	# Semi-latus rectum: p = a(1 - e²) = |a|(e² - 1) for hyperbola
-	var p = a_abs * (e * e - 1.0)
-	
-	if p <= 0:
-		return
-	
-	# Find the true anomaly range where the trajectory is within the SOI
-	# r = p / (1 + e·cos(θ))
-	# At SOI boundary: soi_radius = p / (1 + e·cos(θ_exit))
-	# cos(θ_exit) = (p / soi_radius - 1) / e
-	
-	var cos_exit = (p / soi_radius - 1.0) / e
-	cos_exit = clamp(cos_exit, -1.0, 1.0)
-	var exit_anomaly = acos(cos_exit)
-	
-	# For hyperbola, the asymptote angle limits the valid range
-	# The asymptotes are at θ = ±acos(-1/e)
-	var asymptote_limit = acos(-1.0 / e) if e > 1.0 else PI * 0.99
-	
-	# Use the smaller of exit_anomaly and asymptote limit
-	var max_anomaly = min(exit_anomaly, asymptote_limit * 0.98)
-	
-	# Determine if we're on the incoming or outgoing branch
-	var rel_pos = global_position - ref_pos
-	var rel_vel = OrbitalMechanics.get_relative_velocity(velocity, ref_body)
-	var radial_velocity = rel_pos.normalized().dot(rel_vel)
-	
-	var start_anomaly: float
-	var end_anomaly: float
-	
-	# Draw from current position through periapsis to exit
-	if radial_velocity < 0:
-		# Approaching periapsis (incoming)
-		start_anomaly = -max_anomaly
-		end_anomaly = max_anomaly
-	else:
-		# Moving away from periapsis (outgoing)
-		start_anomaly = -max_anomaly
-		end_anomaly = max_anomaly
-	
-	# Generate and draw trajectory points
-	var draw_scale = _get_draw_scale()
-	var line_width = 1.5 * draw_scale
-	var alpha = 0.7
-	var orbit_color = Color(trajectory_color.r, trajectory_color.g, trajectory_color.b, alpha)
-	
-	var points: PackedVector2Array = []
-	var num_points = trajectory_points
-	
-	for i in range(num_points + 1):
-		var t = float(i) / float(num_points)
-		var true_anomaly = start_anomaly + t * (end_anomaly - start_anomaly)
-		var r = p / (1.0 + e * cos(true_anomaly))
-		
-		# Skip invalid points (behind focus for hyperbola)
-		if r <= 0 or not is_finite(r):
-			continue
-		
-		var world_point = ref_pos + Vector2(r * cos(true_anomaly + omega), r * sin(true_anomaly + omega))
-		points.append(to_local(world_point))
-	
-	# Draw the trajectory
-	for i in range(points.size() - 1):
-		draw_line(points[i], points[i + 1], orbit_color, line_width)
-	
-	# Draw periapsis marker
-	var periapsis_color = Color(1.0, 0.5, 0.3, 0.9)
-	var periapsis_pos = ref_pos + Vector2(elements.periapsis, 0).rotated(omega)
-	var periapsis_local = to_local(periapsis_pos)
-	var periapsis_dir = periapsis_local.normalized() if periapsis_local.length() > 1 else Vector2.RIGHT
-	_draw_apsis_marker(periapsis_local, periapsis_dir, periapsis_color, "Pe", draw_scale)
-	
-	# Draw SOI exit markers
-	var exit_color = Color(1.0, 0.3, 0.3, 0.9)
-	var exit_pos1 = ref_pos + Vector2(soi_radius * cos(exit_anomaly + omega), soi_radius * sin(exit_anomaly + omega))
-	var exit_pos2 = ref_pos + Vector2(soi_radius * cos(-exit_anomaly + omega), soi_radius * sin(-exit_anomaly + omega))
-	
-	draw_circle(to_local(exit_pos1), 5.0 * draw_scale, exit_color)
-	draw_circle(to_local(exit_pos2), 5.0 * draw_scale, exit_color)
 
 
 ## Draw an apsis marker with chevron and label
