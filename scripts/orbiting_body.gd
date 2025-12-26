@@ -61,6 +61,7 @@ var _orbit_needs_recalc: bool = true
 var _cached_soi_encounter: Dictionary = {}
 var _cached_soi_encounter_body: Node2D = null
 var _cached_soi_encounter_soi: float = 0.0
+var _cached_soi_encounter_timestamp: float = 0.0
 
 ## Compatibility property - exposes reference body from patched conics state
 var _cached_orbit_ref_body: Node2D:
@@ -642,6 +643,7 @@ func _draw_soi_encounter_predictions() -> void:
 				_cached_soi_encounter = encounter
 				_cached_soi_encounter_body = body
 				_cached_soi_encounter_soi = body_soi
+				_cached_soi_encounter_timestamp = Time.get_ticks_msec() / 1000.0
 		else:
 			encounter = _cached_soi_encounter
 		
@@ -664,9 +666,11 @@ func _draw_soi_encounter_predictions() -> void:
 		# Draw the hyperbolic trajectory around the target body
 		_draw_encounter_hyperbola(encounter, body_soi, target_center_world, draw_scale, encounter_color)
 		
-		# Draw label with time to encounter
+		# Draw label with time to encounter (countdown)
+		var elapsed_time = (Time.get_ticks_msec() / 1000.0) - _cached_soi_encounter_timestamp
+		var time_remaining = max(0.0, encounter["time"] - elapsed_time)
 		var label_pos = encounter_local + Vector2.UP * 25.0 * draw_scale
-		var label_text = "%.0fs" % encounter["time"]
+		var label_text = "%.0fs" % time_remaining
 		
 		draw_set_transform(label_pos, -rotation, Vector2(draw_scale, draw_scale))
 		draw_string(ThemeDB.fallback_font, Vector2(-12, 4), label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 12, encounter_color)
