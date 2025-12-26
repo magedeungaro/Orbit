@@ -47,8 +47,9 @@ script = ExtResource("3_orbit_vis")
 [node name="Player" type="Node2D" parent="."]
 
 [node name="Ship" parent="Player" instance=ExtResource("6_ship")]
-position = Vector2(1500, 3000)
-initial_velocity = Vector2(0, 410)
+position = Vector2(3028, 1833)
+debug_soi_encounter = true
+initial_velocity = Vector2(-550, 0)
 thrust_force = 60.0
 boundary_left = -10000.0
 boundary_top = -10000.0
@@ -77,6 +78,7 @@ orbits_around_path = NodePath("../Sun")
 use_custom_orbit = true
 orbit_path_color = Color(0.5019608, 0.69803923, 1, 0.5294118)
 is_target = true
+debug_orbital_motion = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/OuterPlanet"]
 shape = SubResource("CircleShape2D_outer")
