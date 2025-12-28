@@ -351,6 +351,10 @@ func _draw_soi_encounter_predictions(ship: Node2D, ship_position: Vector2, ship_
 				_cached_soi_encounter_body = body
 				_cached_soi_encounter_soi = body_soi
 				_cached_soi_encounter_timestamp = Time.get_ticks_msec() / 1000.0
+			else:
+				# Clear cached encounter if no encounter found
+				_cached_soi_encounter = {}
+				_cached_soi_encounter_body = null
 		else:
 			encounter = _cached_soi_encounter
 		
