@@ -254,8 +254,8 @@ func _draw_trajectory_hyperbola(ship: Node2D, patched_conics_state) -> void:
 	var asymptote_limit = acos(-1.0 / e) if e > 1.0 else PI * 0.99
 	var max_anomaly = min(exit_anomaly, asymptote_limit * 0.98)
 	
-	var rel_pos = ship.global_position - ref_pos
-	var rel_vel = OrbitalMechanics.get_relative_velocity(ship.velocity, ref_body)
+	var _rel_pos = ship.global_position - ref_pos
+	var _rel_vel = OrbitalMechanics.get_relative_velocity(ship.velocity, ref_body)
 	
 	var start_anomaly = -max_anomaly
 	var end_anomaly = max_anomaly
@@ -298,7 +298,7 @@ func _draw_trajectory_hyperbola(ship: Node2D, patched_conics_state) -> void:
 
 
 ## Draw apsis marker
-func _draw_apsis_marker(ship: Node2D, pos: Vector2, direction: Vector2, color: Color, label: String, draw_scale: float = 1.0) -> void:
+func _draw_apsis_marker(ship: Node2D, pos: Vector2, _direction: Vector2, color: Color, label: String, draw_scale: float = 1.0) -> void:
 	var marker_radius = marker_base_radius * draw_scale
 	
 	# Draw the point
@@ -482,10 +482,18 @@ func _find_soi_encounter(_ship: Node2D, ship_position: Vector2, ship_velocity: V
 
 ## Refine SOI entry point
 func _refine_soi_entry(t_low: float, t_high: float, ship_M0: float, ship_n: float, ship_e: float, ship_p: float, ship_omega: float, target_M0: float, target_n: float, target_e: float, target_p: float, target_omega: float, target_soi: float, ship_rel_pos: Vector2, ship_rel_vel: Vector2, ref_body_pos: Vector2, target_mu: float, ref_mu: float) -> Dictionary:
+	# Declare variables before loop to avoid confusable local declarations
+	var ship_pos: Vector2
+	var ship_vel: Vector2
+	var target_M: float
+	var target_nu_t: float
+	var target_r: float
+	var target_angle: float
+	var target_pos: Vector2
+	
 	for _iter in range(15):
 		var t_mid = (t_low + t_high) / 2.0
 		
-		var ship_pos: Vector2
 		if ship_e < 1.0:
 			var ship_M = ship_M0 + ship_n * t_mid
 			var ship_nu_t = _mean_to_true_anomaly(ship_M, ship_e)
@@ -495,11 +503,11 @@ func _refine_soi_entry(t_low: float, t_high: float, ship_M0: float, ship_n: floa
 		else:
 			ship_pos = ship_rel_pos + ship_rel_vel * t_mid
 		
-		var target_M = target_M0 + target_n * t_mid
-		var target_nu_t = _mean_to_true_anomaly(target_M, target_e)
-		var target_r = target_p / (1.0 + target_e * cos(target_nu_t))
-		var target_angle = target_nu_t + target_omega
-		var target_pos = Vector2(target_r * cos(target_angle), target_r * sin(target_angle))
+		target_M = target_M0 + target_n * t_mid
+		target_nu_t = _mean_to_true_anomaly(target_M, target_e)
+		target_r = target_p / (1.0 + target_e * cos(target_nu_t))
+		target_angle = target_nu_t + target_omega
+		target_pos = Vector2(target_r * cos(target_angle), target_r * sin(target_angle))
 		
 		var dist = (ship_pos - target_pos).length()
 		
@@ -513,8 +521,6 @@ func _refine_soi_entry(t_low: float, t_high: float, ship_M0: float, ship_n: floa
 	
 	var t_entry = (t_low + t_high) / 2.0
 	
-	var ship_pos: Vector2
-	var ship_vel: Vector2
 	if ship_e < 1.0:
 		var ship_M = ship_M0 + ship_n * t_entry
 		var ship_nu_t = _mean_to_true_anomaly(ship_M, ship_e)
@@ -535,11 +541,11 @@ func _refine_soi_entry(t_low: float, t_high: float, ship_M0: float, ship_n: floa
 		ship_pos = ship_rel_pos + ship_rel_vel * t_entry
 		ship_vel = ship_rel_vel
 	
-	var target_M = target_M0 + target_n * t_entry
-	var target_nu_t = _mean_to_true_anomaly(target_M, target_e)
-	var target_r = target_p / (1.0 + target_e * cos(target_nu_t))
-	var target_angle = target_nu_t + target_omega
-	var target_pos = Vector2(target_r * cos(target_angle), target_r * sin(target_angle))
+	target_M = target_M0 + target_n * t_entry
+	target_nu_t = _mean_to_true_anomaly(target_M, target_e)
+	target_r = target_p / (1.0 + target_e * cos(target_nu_t))
+	target_angle = target_nu_t + target_omega
+	target_pos = Vector2(target_r * cos(target_angle), target_r * sin(target_angle))
 	
 	var target_h = sqrt(ref_mu * target_p) * sign(target_n)
 	var target_vel: Vector2 = Vector2.ZERO

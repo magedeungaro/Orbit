@@ -74,6 +74,8 @@ var _gravity_hybrid: GravityHybrid = null
 var _trajectory_viz: TrajectoryVisualization = null
 
 ## Compatibility property - exposes reference body from patched conics state for HUD
+## Note: Used by HUD externally via direct property access
+@warning_ignore("UNUSED_PRIVATE_CLASS_VARIABLE")
 var _cached_orbit_ref_body: Node2D:
 	get:
 		return _patched_conics_state.reference_body if _patched_conics_state else null
