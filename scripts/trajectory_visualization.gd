@@ -149,9 +149,44 @@ func _draw_trajectory_ellipse(ship: Node2D, patched_conics_state) -> void:
 	var points: PackedVector2Array = []
 	var num_points = trajectory_points
 	
+	# Adaptive sampling: distribute points based on radius (more points where r is larger)
+	# First pass: calculate cumulative arc-length proxy (using radius as weight)
+	var angle_range = end_anomaly - start_anomaly
+	var cumulative_weights: PackedFloat32Array = [0.0]
+	var total_weight = 0.0
+	var temp_samples = 200  # Temporary high-res sampling to measure distribution
+	
+	for i in range(1, temp_samples + 1):
+		var t = float(i) / float(temp_samples)
+		var true_anomaly = start_anomaly + t * angle_range
+		var p = a * (1.0 - e * e)
+		var r = p / (1.0 + e * cos(true_anomaly))
+		total_weight += r
+		cumulative_weights.append(total_weight)
+	
+	# Second pass: sample at evenly-spaced cumulative weights
 	for i in range(num_points + 1):
-		var t = float(i) / float(num_points)
-		var true_anomaly = start_anomaly + t * (end_anomaly - start_anomaly)
+		var target_weight = (float(i) / float(num_points)) * total_weight
+		
+		# Find the segment containing target_weight
+		var idx = temp_samples - 1  # Default to last segment
+		for j in range(cumulative_weights.size() - 1):
+			if target_weight >= cumulative_weights[j] and target_weight <= cumulative_weights[j + 1]:
+				idx = j
+				break
+		
+		# Clamp idx to valid range
+		idx = clamp(idx, 0, temp_samples - 1)
+		
+		# Interpolate within the segment
+		var t_interp = float(idx) / float(temp_samples)
+		if idx < cumulative_weights.size() - 1:
+			var weight_diff = cumulative_weights[idx + 1] - cumulative_weights[idx]
+			if weight_diff > 0.0:
+				var frac = (target_weight - cumulative_weights[idx]) / weight_diff
+				t_interp = (float(idx) + frac) / float(temp_samples)
+		
+		var true_anomaly = start_anomaly + t_interp * angle_range
 		var p = a * (1.0 - e * e)
 		var r = p / (1.0 + e * cos(true_anomaly))
 		var world_point = ref_pos + Vector2(r * cos(true_anomaly + omega), r * sin(true_anomaly + omega))
