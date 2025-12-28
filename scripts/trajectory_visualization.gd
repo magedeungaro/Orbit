@@ -16,6 +16,7 @@ var trajectory_color: Color = Color(0.0, 1.0, 1.0, 0.5)
 var trajectory_points: int = 100
 var trajectory_prediction_time: float = 30.0
 var parent_gravity_attenuation: float = 0.2
+var marker_base_radius: float = 4.0  # Base radius for all markers (Pe, Ap, encounter, exit)
 
 # =============================================================================
 # STATE
@@ -218,8 +219,8 @@ func _draw_trajectory_ellipse(ship: Node2D, patched_conics_state) -> void:
 		var exit_anomaly = acos(cos_exit)
 		var exit_pos1 = ref_pos + Vector2(soi_radius * cos(exit_anomaly + omega), soi_radius * sin(exit_anomaly + omega))
 		var exit_pos2 = ref_pos + Vector2(soi_radius * cos(-exit_anomaly + omega), soi_radius * sin(-exit_anomaly + omega))
-		ship.draw_circle(ship.to_local(exit_pos1), 8.0 * draw_scale, exit_color)
-		ship.draw_circle(ship.to_local(exit_pos2), 8.0 * draw_scale, exit_color)
+		ship.draw_circle(ship.to_local(exit_pos1), marker_base_radius * draw_scale, exit_color)
+		ship.draw_circle(ship.to_local(exit_pos2), marker_base_radius * draw_scale, exit_color)
 
 
 ## Draw hyperbolic trajectory
@@ -292,13 +293,13 @@ func _draw_trajectory_hyperbola(ship: Node2D, patched_conics_state) -> void:
 	var exit_color = Color(1.0, 0.3, 0.3, 0.9)
 	var exit_pos1 = ref_pos + Vector2(soi_radius * cos(exit_anomaly + omega), soi_radius * sin(exit_anomaly + omega))
 	var exit_pos2 = ref_pos + Vector2(soi_radius * cos(-exit_anomaly + omega), soi_radius * sin(-exit_anomaly + omega))
-	ship.draw_circle(ship.to_local(exit_pos1), 8.0 * draw_scale, exit_color)
-	ship.draw_circle(ship.to_local(exit_pos2), 8.0 * draw_scale, exit_color)
+	ship.draw_circle(ship.to_local(exit_pos1), marker_base_radius * draw_scale, exit_color)
+	ship.draw_circle(ship.to_local(exit_pos2), marker_base_radius * draw_scale, exit_color)
 
 
 ## Draw apsis marker
 func _draw_apsis_marker(ship: Node2D, pos: Vector2, direction: Vector2, color: Color, label: String, draw_scale: float = 1.0) -> void:
-	var marker_radius = 6.0 * draw_scale
+	var marker_radius = marker_base_radius * draw_scale
 	
 	# Draw the point
 	ship.draw_circle(pos, marker_radius, color)
@@ -367,8 +368,7 @@ func _draw_soi_encounter_predictions(ship: Node2D, ship_position: Vector2, ship_
 		var encounter_local = ship.to_local(encounter_world_pos)
 		
 		var encounter_color = Color(0.3, 1.0, 0.5, 0.9)
-		# Smaller encounter marker (4.0 instead of 12.0)
-		ship.draw_circle(encounter_local, 4.0 * draw_scale, encounter_color)
+		ship.draw_circle(encounter_local, marker_base_radius * draw_scale, encounter_color)
 		
 		_draw_encounter_hyperbola(ship, encounter, body_soi, target_center_world, draw_scale, encounter_color)
 		
