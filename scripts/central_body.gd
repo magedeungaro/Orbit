@@ -392,20 +392,6 @@ func _propagate_keplerian_orbit() -> void:
 			velocity = relative_velocity + orbits_around.velocity
 		else:
 			velocity = relative_velocity
-	
-	# Debug logging
-	if debug_orbital_motion and _debug_frame_counter % DEBUG_LOG_INTERVAL == 0:
-		print("[%s] t=%.2f, elapsed=%.2f, M0=%.1f deg, M=%.1f deg, v=%.1f deg" % [
-			name, current_time, elapsed_time,
-			rad_to_deg(initial_mean_anomaly),
-			rad_to_deg(current_mean_anomaly),
-			rad_to_deg(current_true_anomaly)
-		])
-		print("  pos=(%.1f, %.1f), rel_pos=(%.1f, %.1f), r=%.1f" % [
-			global_position.x, global_position.y,
-			rel_pos.x, rel_pos.y, r
-		])
-		print("  vel=(%.1f, %.1f), speed=%.1f" % [velocity.x, velocity.y, velocity.length()])
 
 
 ## Convert true anomaly to mean anomaly (for elliptical orbits)
