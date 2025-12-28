@@ -11,7 +11,7 @@ const CrashScreenScene = preload("res://scenes/ui/crash_screen.tscn")
 const OptionsScreenScene = preload("res://scenes/ui/options_screen.tscn")
 const LevelSelectScreenScene = preload("res://scenes/ui/level_select_screen.tscn")
 const PauseScreenScene = preload("res://scenes/ui/pause_screen.tscn")
-const HUDScript = preload("res://scripts/hud.gd")
+const HUDScript = preload("res://scripts/ui/hud.gd")
 const TouchControlsScene = preload("res://scenes/ui/touch_controls.tscn")
 const AudiowideFont = preload("res://Assets/fonts/Audiowide/Audiowide-Regular.ttf")
 
