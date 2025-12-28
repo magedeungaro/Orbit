@@ -196,7 +196,10 @@ func _draw_trajectory_ellipse(ship: Node2D, patched_conics_state) -> void:
 		ship.draw_line(points[i], points[i + 1], orbit_color, line_width)
 	
 	var periapsis_color = Color(1.0, 0.5, 0.3, 0.9)
-	var periapsis_pos = ref_pos + Vector2(elements.periapsis, 0).rotated(omega)
+	# Calculate periapsis distance using orbital mechanics formula: r = p / (1 + e)
+	var semi_latus_rectum = a * (1.0 - e * e)
+	var periapsis_distance = semi_latus_rectum / (1.0 + e)
+	var periapsis_pos = ref_pos + Vector2(periapsis_distance, 0).rotated(omega)
 	var periapsis_local = ship.to_local(periapsis_pos)
 	var periapsis_dir = periapsis_local.normalized() if periapsis_local.length() > 1 else Vector2.RIGHT
 	_draw_apsis_marker(ship, periapsis_local, periapsis_dir, periapsis_color, "Pe", draw_scale)
@@ -279,7 +282,9 @@ func _draw_trajectory_hyperbola(ship: Node2D, patched_conics_state) -> void:
 		ship.draw_line(points[i], points[i + 1], orbit_color, line_width)
 	
 	var periapsis_color = Color(1.0, 0.5, 0.3, 0.9)
-	var periapsis_pos = ref_pos + Vector2(elements.periapsis, 0).rotated(omega)
+	# Calculate periapsis distance using orbital mechanics formula: r = p / (1 + e)
+	var periapsis_distance = p / (1.0 + e)
+	var periapsis_pos = ref_pos + Vector2(periapsis_distance, 0).rotated(omega)
 	var periapsis_local = ship.to_local(periapsis_pos)
 	var periapsis_dir = periapsis_local.normalized() if periapsis_local.length() > 1 else Vector2.RIGHT
 	_draw_apsis_marker(ship, periapsis_local, periapsis_dir, periapsis_color, "Pe", draw_scale)
@@ -657,12 +662,8 @@ func _draw_encounter_hyperbola(ship: Node2D, encounter: Dictionary, target_soi: 
 	var pe_direction = (periapsis_local - target_local).normalized() if periapsis_local.distance_to(target_local) > 1 else Vector2.RIGHT
 	
 	var pe_color = Color(1.0, 0.6, 0.3, 0.9)
-	ship.draw_circle(periapsis_local, 8.0 * draw_scale, pe_color)
-	
-	var pe_label_pos = periapsis_local + pe_direction * 20.0 * draw_scale
-	ship.draw_set_transform(pe_label_pos, -ship.rotation, Vector2(draw_scale, draw_scale))
-	ship.draw_string(ThemeDB.fallback_font, Vector2(-8, 4), "Pe", HORIZONTAL_ALIGNMENT_CENTER, -1, 10, pe_color)
-	ship.draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
+	# Use consistent marker style with main apsis markers
+	_draw_apsis_marker(ship, periapsis_local, pe_direction, pe_color, "Pe", draw_scale)
 
 
 ## Calculate n-body trajectory
