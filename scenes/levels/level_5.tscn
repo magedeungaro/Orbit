@@ -47,8 +47,7 @@ script = ExtResource("3_orbit_vis")
 [node name="Player" type="Node2D" parent="."]
 
 [node name="Ship" parent="Player" instance=ExtResource("6_ship")]
-position = Vector2(3028, 1833)
-debug_soi_encounter = true
+position = Vector2(3028, 1833)gravity_calculation_mode = 0debug_soi_encounter = true
 initial_velocity = Vector2(-550, 0)
 thrust_force = 60.0
 boundary_left = -10000.0

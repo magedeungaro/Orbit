@@ -51,6 +51,7 @@ script = ExtResource("3_orbit_vis")
 
 [node name="Ship" parent="Player" instance=ExtResource("6_ship")]
 position = Vector2(625, 370)
+gravity_calculation_mode = 1
 
 [node name="Planets" type="Node2D" parent="."]
 

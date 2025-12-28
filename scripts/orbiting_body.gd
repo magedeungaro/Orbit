@@ -1,15 +1,23 @@
 extends CharacterBody2D
 
+## Orbital Mechanics Mode
+enum GravityCalculationMode {
+	PATCHED_CONICS,  ## Pure patched conics - only dominant body affects ship
+	HYBRID  ## Hybrid n-body + patched conics - all bodies affect ship with SOI filtering
+}
+
 ## Debug Settings
 @export_group("Debug")
 @export var debug_infinite_fuel: bool = false  ## Enable for testing without fuel limits
 
 ## Level Design Settings
 @export_group("Level Design")
+@export var gravity_calculation_mode: GravityCalculationMode = GravityCalculationMode.PATCHED_CONICS  ## Select orbital mechanics calculation method
 @export var initial_velocity: Vector2 = Vector2.ZERO  ## Starting velocity (use to set up initial orbits)
 @export var thrust_force: float = 300.0
 @export var max_fuel: float = 1000.0
 @export var stable_orbit_time_required: float = 10.0
+@export_range(0.0, 1.0, 0.05) var parent_gravity_attenuation: float = 0.05  ## For HYBRID mode: How much parent body gravity affects ship inside child SOI
 
 @export_group("Boundaries")
 @export var boundary_left: float = -5000.0
@@ -30,10 +38,13 @@ var fuel_consumption_rate: float = 50.0
 var explosion_duration: float = 1.0
 
 ## Trajectory visualization settings
+@export_group("Trajectory Visualization")
+@export var show_trajectory: bool = true  ## Show Keplerian orbit trajectory
+@export var show_perturbed_trajectory: bool = true  ## Show n-body perturbed trajectory (HYBRID mode only)
+@export var trajectory_color: Color = Color.YELLOW
+@export var trajectory_points: int = 128
+@export var trajectory_prediction_time: float = 60.0  ## Time to predict trajectory (seconds)
 var show_sphere_of_influence: bool = true
-var show_trajectory: bool = true
-var trajectory_color: Color = Color.YELLOW
-var trajectory_points: int = 128
 
 ## Runtime state
 var current_fuel: float = 1000.0
@@ -52,18 +63,17 @@ var total_orbit_angle: float = 0.0
 
 ## Patched Conics state (centralized orbital mechanics)
 var _patched_conics_state: OrbitalMechanics.PatchedConicsState = null
-var _cached_orbital_elements: OrbitalMechanics.OrbitalElements = null
 var _is_thrusting: bool = false
-var _was_thrusting: bool = false
 var _orbit_needs_recalc: bool = true
 
-## Cached SOI encounter data (only recalculate when orbit changes)
-var _cached_soi_encounter: Dictionary = {}
-var _cached_soi_encounter_body: Node2D = null
-var _cached_soi_encounter_soi: float = 0.0
-var _cached_soi_encounter_timestamp: float = 0.0
+## Gravity calculation modules
+var _gravity_patched_conics: GravityPatchedConics = null
+var _gravity_hybrid: GravityHybrid = null
 
-## Compatibility property - exposes reference body from patched conics state
+## Trajectory visualization module
+var _trajectory_viz: TrajectoryVisualization = null
+
+## Compatibility property - exposes reference body from patched conics state for HUD
 var _cached_orbit_ref_body: Node2D:
 	get:
 		return _patched_conics_state.reference_body if _patched_conics_state else null
@@ -88,6 +98,20 @@ func _ready() -> void:
 	current_fuel = max_fuel
 	velocity = initial_velocity
 	_patched_conics_state = OrbitalMechanics.PatchedConicsState.new()
+	
+	# Initialize gravity calculation modules
+	_gravity_patched_conics = GravityPatchedConics.new(gravitational_constant)
+	_gravity_hybrid = GravityHybrid.new(gravitational_constant, parent_gravity_attenuation)
+	
+	# Initialize trajectory visualization
+	_trajectory_viz = TrajectoryVisualization.new()
+	_trajectory_viz.show_trajectory = show_trajectory
+	_trajectory_viz.show_perturbed_trajectory = show_perturbed_trajectory
+	_trajectory_viz.trajectory_color = trajectory_color
+	_trajectory_viz.trajectory_points = trajectory_points
+	_trajectory_viz.trajectory_prediction_time = trajectory_prediction_time
+	_trajectory_viz.gravitational_constant = gravitational_constant
+	_trajectory_viz.parent_gravity_attenuation = parent_gravity_attenuation
 	
 	var root = get_tree().root
 	central_bodies = _find_all_nodes_with_script(root, "central_body")
@@ -134,8 +158,12 @@ func _physics_process(delta: float) -> void:
 	# Handle input and thrust
 	_handle_thrust_input(delta)
 	
-	# Apply gravity using patched conics (single reference body)
-	_apply_patched_conic_gravity(delta)
+	# Apply gravity using selected calculation mode
+	match gravity_calculation_mode:
+		GravityCalculationMode.PATCHED_CONICS:
+			velocity = _gravity_patched_conics.apply_gravity(global_position, velocity, _patched_conics_state, delta)
+		GravityCalculationMode.HYBRID:
+			velocity = _gravity_hybrid.apply_gravity(global_position, velocity, _patched_conics_state, central_bodies, delta)
 	
 	# Update rotation and movement
 	rotation = deg_to_rad(thrust_angle - 90)
@@ -152,28 +180,18 @@ func _physics_process(delta: float) -> void:
 func _update_patched_conics_state() -> void:
 	var old_ref_body = _patched_conics_state.reference_body if _patched_conics_state else null
 	
-	_patched_conics_state = OrbitalMechanics.build_soi_hierarchy(
-		global_position,
-		central_bodies,
-		gravitational_constant
-	)
+	_patched_conics_state = _gravity_patched_conics.update_soi_hierarchy(global_position, central_bodies)
 	
 	# Mark orbit for recalculation if reference body changed
 	if _patched_conics_state.reference_body != old_ref_body:
 		_orbit_needs_recalc = true
-		_cached_soi_encounter = {}  # Clear cached encounter
+		if _trajectory_viz:
+			_trajectory_viz.mark_for_recalculation()
 
 
-## Apply gravity using the patched conics approximation
-## Only the reference body's gravity affects the ship (true two-body problem)
-func _apply_patched_conic_gravity(delta: float) -> void:
-	velocity = OrbitalMechanics.apply_patched_conic_gravity(
-		global_position,
-		velocity,
-		_patched_conics_state,
-		delta,
-		gravitational_constant
-	)
+# =============================================================================
+# INPUT HANDLING
+# =============================================================================
 
 
 func _handle_thrust_input(delta: float) -> void:
@@ -227,7 +245,6 @@ func _handle_thrust_input(delta: float) -> void:
 			current_fuel = max(0, current_fuel - fuel_consumption_rate * delta)
 		velocity += thrust_direction * thrust_force * delta
 		_orbit_needs_recalc = true
-		_cached_soi_encounter = {}  # Clear cached encounter when thrusting
 
 
 func get_fuel_percentage() -> float:
@@ -342,703 +359,23 @@ func _handle_screen_bounce() -> void:
 # =============================================================================
 
 func _draw() -> void:
-	if not show_trajectory:
+	if _trajectory_viz == null:
 		return
 	
-	var ref_body = _patched_conics_state.reference_body if _patched_conics_state else null
-	if ref_body == null:
-		return
-	
-	# Recalculate orbital elements if needed
-	var thrust_just_stopped = _was_thrusting and not _is_thrusting
-	if _orbit_needs_recalc or thrust_just_stopped or _is_thrusting:
-		_update_orbital_elements()
-		_orbit_needs_recalc = false
-	
-	_was_thrusting = _is_thrusting
-	
-	# Draw the Keplerian trajectory (ellipse or hyperbola)
-	if _cached_orbital_elements != null and _cached_orbital_elements.is_valid:
-		if _cached_orbital_elements.eccentricity < 1.0:
-			_draw_trajectory_ellipse()
-		else:
-			_draw_trajectory_hyperbola()
-		
-		# Draw predicted SOI encounter points with moving bodies
-		_draw_soi_encounter_predictions()
-
-
-## Update cached orbital elements using patched conics
-func _update_orbital_elements() -> void:
-	var ref_body = _patched_conics_state.reference_body if _patched_conics_state else null
-	if ref_body == null:
-		_cached_orbital_elements = null
-		return
-	
-	var rel_pos = OrbitalMechanics.get_relative_position(global_position, ref_body)
-	var rel_vel = OrbitalMechanics.get_relative_velocity(velocity, ref_body)
-	var mu = gravitational_constant * ref_body.mass
-	
-	_cached_orbital_elements = OrbitalMechanics.calculate_orbital_elements(rel_pos, rel_vel, mu)
-
-
-## Draw the Keplerian trajectory ellipse
-func _draw_trajectory_ellipse() -> void:
-	if _cached_orbital_elements == null or not _cached_orbital_elements.is_valid:
-		return
-	
-	var ref_body = _patched_conics_state.reference_body
-	if ref_body == null:
-		return
-	
-	var elements = _cached_orbital_elements
-	var ref_pos = ref_body.global_position
-	
-	var a = elements.semi_major_axis
-	var e = elements.eccentricity
-	var omega = elements.argument_of_periapsis
-	
-	if a <= 0 or not is_finite(a):
-		return
-	
-	var max_orbit_size = 20000.0
-	if a > max_orbit_size:
-		return
-	
-	var soi_radius = _patched_conics_state.reference_soi
-	var apoapsis = elements.apoapsis
-	var exits_soi = apoapsis > soi_radius and e > 0.01
-	
-	# Determine drawing range
-	var start_anomaly: float = 0.0
-	var end_anomaly: float = TAU
-	
-	if exits_soi:
-		var p = a * (1.0 - e * e)
-		var cos_exit = (p / soi_radius - 1.0) / e
-		cos_exit = clamp(cos_exit, -1.0, 1.0)
-		var exit_anomaly = acos(cos_exit)
-		start_anomaly = -exit_anomaly
-		end_anomaly = exit_anomaly
-	
-	# Generate and draw trajectory points
-	var draw_scale = _get_draw_scale()
-	var line_width = 1.5 * draw_scale
-	var alpha = 0.7
-	var orbit_color = Color(trajectory_color.r, trajectory_color.g, trajectory_color.b, alpha)
-	
-	var points: PackedVector2Array = []
-	var num_points = trajectory_points
-	
-	for i in range(num_points + 1):
-		var t = float(i) / float(num_points)
-		var true_anomaly = start_anomaly + t * (end_anomaly - start_anomaly)
-		var p = a * (1.0 - e * e)
-		var r = p / (1.0 + e * cos(true_anomaly))
-		var world_point = ref_pos + Vector2(r * cos(true_anomaly + omega), r * sin(true_anomaly + omega))
-		points.append(to_local(world_point))
-	
-	for i in range(num_points):
-		draw_line(points[i], points[i + 1], orbit_color, line_width)
-	
-	# Draw periapsis marker
-	var periapsis_color = Color(1.0, 0.5, 0.3, 0.9)
-	var periapsis_pos = ref_pos + Vector2(elements.periapsis, 0).rotated(omega)
-	var periapsis_local = to_local(periapsis_pos)
-	var periapsis_dir = periapsis_local.normalized() if periapsis_local.length() > 1 else Vector2.RIGHT
-	_draw_apsis_marker(periapsis_local, periapsis_dir, periapsis_color, "Pe", draw_scale)
-	
-	# Draw apoapsis marker (only if orbit doesn't exit SOI)
-	if not exits_soi:
-		var apoapsis_color = Color(0.3, 0.5, 1.0, 0.9)
-		var apoapsis_pos = ref_pos + Vector2(-apoapsis, 0).rotated(omega)
-		var apoapsis_local = to_local(apoapsis_pos)
-		var apoapsis_dir = apoapsis_local.normalized() if apoapsis_local.length() > 1 else Vector2.LEFT
-		_draw_apsis_marker(apoapsis_local, apoapsis_dir, apoapsis_color, "Ap", draw_scale)
-	else:
-		# Draw SOI exit markers
-		var exit_color = Color(1.0, 0.3, 0.3, 0.9)
-		var p = a * (1.0 - e * e)
-		var cos_exit = (p / soi_radius - 1.0) / e
-		cos_exit = clamp(cos_exit, -1.0, 1.0)
-		var exit_anomaly = acos(cos_exit)
-		
-		var exit_pos1 = ref_pos + Vector2(soi_radius * cos(exit_anomaly + omega), soi_radius * sin(exit_anomaly + omega))
-		var exit_pos2 = ref_pos + Vector2(soi_radius * cos(-exit_anomaly + omega), soi_radius * sin(-exit_anomaly + omega))
-		
-		draw_circle(to_local(exit_pos1), 5.0 * draw_scale, exit_color)
-		draw_circle(to_local(exit_pos2), 5.0 * draw_scale, exit_color)
-
-
-## Draw a hyperbolic trajectory (eccentricity >= 1)
-func _draw_trajectory_hyperbola() -> void:
-	if _cached_orbital_elements == null or not _cached_orbital_elements.is_valid:
-		return
-	
-	var ref_body = _patched_conics_state.reference_body
-	if ref_body == null:
-		return
-	
-	var elements = _cached_orbital_elements
-	var ref_pos = ref_body.global_position
-	
-	var a = elements.semi_major_axis  # Negative for hyperbolic orbits
-	var e = elements.eccentricity
-	var omega = elements.argument_of_periapsis
-	
-	if not is_finite(a) or not is_finite(e):
-		return
-	
-	var soi_radius = _patched_conics_state.reference_soi
-	
-	# For hyperbolic orbits, a is negative. Use |a| for calculations.
-	var a_abs = abs(a)
-	
-	# Semi-latus rectum: p = a(1 - e²) = |a|(e² - 1) for hyperbola
-	var p = a_abs * (e * e - 1.0)
-	
-	if p <= 0:
-		return
-	
-	# Find the true anomaly range where the trajectory is within the SOI
-	# r = p / (1 + e·cos(θ))
-	# At SOI boundary: soi_radius = p / (1 + e·cos(θ_exit))
-	# cos(θ_exit) = (p / soi_radius - 1) / e
-	
-	var cos_exit = (p / soi_radius - 1.0) / e
-	cos_exit = clamp(cos_exit, -1.0, 1.0)
-	var exit_anomaly = acos(cos_exit)
-	
-	# For hyperbola, the asymptote angle limits the valid range
-	# The asymptotes are at θ = ±acos(-1/e)
-	var asymptote_limit = acos(-1.0 / e) if e > 1.0 else PI * 0.99
-	
-	# Use the smaller of exit_anomaly and asymptote limit
-	var max_anomaly = min(exit_anomaly, asymptote_limit * 0.98)
-	
-	# Determine if we're on the incoming or outgoing branch
-	var rel_pos = global_position - ref_pos
-	var rel_vel = OrbitalMechanics.get_relative_velocity(velocity, ref_body)
-	var radial_velocity = rel_pos.normalized().dot(rel_vel)
-	
-	var start_anomaly: float
-	var end_anomaly: float
-	
-	# Draw from current position through periapsis to exit
-	if radial_velocity < 0:
-		# Approaching periapsis (incoming)
-		start_anomaly = -max_anomaly
-		end_anomaly = max_anomaly
-	else:
-		# Moving away from periapsis (outgoing)
-		start_anomaly = -max_anomaly
-		end_anomaly = max_anomaly
-	
-	# Generate and draw trajectory points
-	var draw_scale = _get_draw_scale()
-	var line_width = 1.5 * draw_scale
-	var alpha = 0.7
-	var orbit_color = Color(trajectory_color.r, trajectory_color.g, trajectory_color.b, alpha)
-	
-	var points: PackedVector2Array = []
-	var num_points = trajectory_points
-	
-	for i in range(num_points + 1):
-		var t = float(i) / float(num_points)
-		var true_anomaly = start_anomaly + t * (end_anomaly - start_anomaly)
-		var r = p / (1.0 + e * cos(true_anomaly))
-		
-		# Skip invalid points (behind focus for hyperbola)
-		if r <= 0 or not is_finite(r):
-			continue
-		
-		var world_point = ref_pos + Vector2(r * cos(true_anomaly + omega), r * sin(true_anomaly + omega))
-		points.append(to_local(world_point))
-	
-	# Draw the trajectory
-	for i in range(points.size() - 1):
-		draw_line(points[i], points[i + 1], orbit_color, line_width)
-	
-	# Draw periapsis marker
-	var periapsis_color = Color(1.0, 0.5, 0.3, 0.9)
-	var periapsis_pos = ref_pos + Vector2(elements.periapsis, 0).rotated(omega)
-	var periapsis_local = to_local(periapsis_pos)
-	var periapsis_dir = periapsis_local.normalized() if periapsis_local.length() > 1 else Vector2.RIGHT
-	_draw_apsis_marker(periapsis_local, periapsis_dir, periapsis_color, "Pe", draw_scale)
-	
-	# Draw SOI exit markers
-	var exit_color = Color(1.0, 0.3, 0.3, 0.9)
-	var exit_pos1 = ref_pos + Vector2(soi_radius * cos(exit_anomaly + omega), soi_radius * sin(exit_anomaly + omega))
-	var exit_pos2 = ref_pos + Vector2(soi_radius * cos(-exit_anomaly + omega), soi_radius * sin(-exit_anomaly + omega))
-	
-	draw_circle(to_local(exit_pos1), 5.0 * draw_scale, exit_color)
-	draw_circle(to_local(exit_pos2), 5.0 * draw_scale, exit_color)
-
-
-## Draw an apsis marker with chevron and label
-func _draw_apsis_marker(pos: Vector2, direction: Vector2, color: Color, label: String, draw_scale: float = 1.0) -> void:
-	var chevron_size = 8.0 * draw_scale
-	var marker_radius = 4.0 * draw_scale
-	var chevron_offset = 12.0 * draw_scale
-	var label_offset_dist = 28.0 * draw_scale
-	var line_width = 1.5 * draw_scale
-	
-	draw_circle(pos, marker_radius, color)
-	
-	var perp = Vector2(-direction.y, direction.x)
-	var chevron_tip = pos + direction * chevron_offset
-	var chevron_left = chevron_tip - direction * chevron_size + perp * chevron_size * 0.6
-	var chevron_right = chevron_tip - direction * chevron_size - perp * chevron_size * 0.6
-	
-	draw_line(chevron_left, chevron_tip, color, line_width)
-	draw_line(chevron_right, chevron_tip, color, line_width)
-	
-	var label_offset = direction * label_offset_dist
-	var label_pos = pos + label_offset
-	
-	draw_set_transform(label_pos, -rotation, Vector2(draw_scale, draw_scale))
-	draw_string(ThemeDB.fallback_font, Vector2(-8, 4), label, HORIZONTAL_ALIGNMENT_CENTER, -1, 14, color)
-	draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
-
-
-## Draw predicted SOI encounter points with moving bodies
-func _draw_soi_encounter_predictions() -> void:
-	var ref_body = _patched_conics_state.reference_body if _patched_conics_state else null
-	if ref_body == null:
-		return
-	
-	if _cached_orbital_elements == null or not _cached_orbital_elements.is_valid:
-		return
-	
-	var draw_scale = _get_draw_scale()
-	
-	# Only recalculate encounter when orbit changes (thrusting)
-	var should_recalc = _orbit_needs_recalc or _cached_soi_encounter.is_empty()
-	
-	# Check each body that orbits around our reference body
-	for body in central_bodies:
-		if body == null or body == ref_body:
-			continue
-		
-		# Only check bodies that orbit around our current reference body
-		var body_orbits = body.orbits_around if "orbits_around" in body else null
-		if body_orbits != ref_body:
-			continue
-		
-		var body_mass = body.mass if "mass" in body else 0.0
-		var body_soi = OrbitalMechanics.calculate_soi(body_mass, gravitational_constant)
-		
-		# Get body's orbital elements
-		if not "get_orbital_elements" in body:
-			continue
-		var body_elements = body.get_orbital_elements()
-		if body_elements == null or not body_elements.is_valid:
-			continue
-		
-		# Use cached encounter or find new one
-		var encounter: Dictionary
-		if should_recalc or _cached_soi_encounter_body != body:
-			encounter = _find_soi_encounter(body, body_elements, body_soi)
-			if not encounter.is_empty():
-				_cached_soi_encounter = encounter
-				_cached_soi_encounter_body = body
-				_cached_soi_encounter_soi = body_soi
-				_cached_soi_encounter_timestamp = Time.get_ticks_msec() / 1000.0
-		else:
-			encounter = _cached_soi_encounter
-		
-		if encounter.is_empty():
-			continue
-		
-		# Draw encounter relative to REFERENCE BODY's current position
-		# ship_pos and target_pos are relative to reference body at encounter time
-		# Use reference body's current position to anchor the drawing
-		var ship_pos_rel: Vector2 = encounter["ship_pos"]
-		var target_pos_rel: Vector2 = encounter["target_pos"]
-		var encounter_world_pos = ref_body.global_position + ship_pos_rel
-		var target_center_world = ref_body.global_position + target_pos_rel
-		var encounter_local = to_local(encounter_world_pos)
-		
-		# Draw encounter point (green star)
-		var encounter_color = Color(0.3, 1.0, 0.5, 0.9)
-		draw_circle(encounter_local, 8.0 * draw_scale, encounter_color)
-		
-		# Draw the hyperbolic trajectory around the target body
-		_draw_encounter_hyperbola(encounter, body_soi, target_center_world, draw_scale, encounter_color)
-		
-		# Draw label with time to encounter (countdown)
-		var elapsed_time = (Time.get_ticks_msec() / 1000.0) - _cached_soi_encounter_timestamp
-		var time_remaining = max(0.0, encounter["time"] - elapsed_time)
-		var label_pos = encounter_local + Vector2.UP * 25.0 * draw_scale
-		var label_text = "%.0fs" % time_remaining
-		
-		draw_set_transform(label_pos, -rotation, Vector2(draw_scale, draw_scale))
-		draw_string(ThemeDB.fallback_font, Vector2(-12, 4), label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 12, encounter_color)
-		draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
-
-
-## Draw the hyperbolic trajectory around the encountered body
-## The hyperbola shape is defined by the cached encounter geometry (rel_pos, rel_vel)
-## target_center_world is where the target will be, relative to reference body's current position
-func _draw_encounter_hyperbola(encounter: Dictionary, target_soi: float, target_center_world: Vector2, draw_scale: float, color: Color) -> void:
-	# Use cached encounter geometry (defines the shape of the hyperbola)
-	if not "rel_pos" in encounter or not "rel_vel" in encounter or not "target_mu" in encounter:
-		return
-	var rel_pos: Vector2 = encounter["rel_pos"]
-	var rel_vel: Vector2 = encounter["rel_vel"]
-	var mu: float = encounter["target_mu"]
-	
-	if mu <= 0:
-		return
-	
-	var r = rel_pos.length()
-	var v = rel_vel.length()
-	
-	if r < 0.1 or v < 0.001:
-		return
-	
-	# Specific orbital energy: ε = v²/2 - μ/r
-	var energy = (v * v / 2.0) - (mu / r)
-	
-	# For hyperbolic encounter, energy should be positive
-	# Semi-major axis: a = -μ/(2ε)
-	if abs(energy) < 0.0001:
-		return  # Parabolic - edge case
-	
-	var a = -mu / (2.0 * energy)
-	
-	# Angular momentum: h = r × v (2D cross product gives scalar)
-	var h = rel_pos.x * rel_vel.y - rel_pos.y * rel_vel.x
-	var h_mag = abs(h)
-	
-	# Eccentricity vector using the correct formula:
-	# e_vec = (1/μ) * ((v² - μ/r) * r - (r·v) * v)
-	var v_sq = v * v
-	var r_dot_v = rel_pos.dot(rel_vel)
-	var e_vec = ((v_sq - mu / r) * rel_pos - r_dot_v * rel_vel) / mu
-	var e = e_vec.length()
-	
-	# Fallback eccentricity calculation using vis-viva
-	if e < 0.01 or not is_finite(e):
-		# e = sqrt(1 + 2*ε*h²/μ²)
-		e = sqrt(max(0, 1.0 + 2.0 * energy * h_mag * h_mag / (mu * mu)))
-	
-	# Argument of periapsis (angle of eccentricity vector)
-	var omega = atan2(e_vec.y, e_vec.x) if e > 0.01 else 0.0
-	
-	# Semi-latus rectum
-	var p: float
-	if e < 1.0:
-		p = abs(a) * (1.0 - e * e)  # Elliptical (shouldn't happen for flyby but just in case)
-	else:
-		p = abs(a) * (e * e - 1.0)  # Hyperbolic
-	
-	if p <= 0 or not is_finite(p):
-		return
-	
-	# Calculate true anomaly range within SOI
-	# r = p / (1 + e·cos(θ))
-	# At SOI: cos(θ) = (p/soi - 1) / e
-	var cos_exit = (p / target_soi - 1.0) / e if e > 0.01 else 0.0
-	cos_exit = clamp(cos_exit, -1.0, 1.0)
-	var exit_anomaly = acos(cos_exit)
-	
-	# For hyperbola, limit by asymptote angle
-	var asymptote_limit = acos(-1.0 / e) if e > 1.0 else PI * 0.99
-	var max_anomaly = min(exit_anomaly, asymptote_limit * 0.98)
-	
-	# Determine orbital direction from angular momentum sign
-	var direction = sign(h) if h != 0 else 1.0
-	
-	# Generate trajectory points - start from entry and go through periapsis to exit
-	var points: PackedVector2Array = []
-	var num_points = 64
-	
-	# Determine start and end anomalies based on entry point and orbital direction
-	var start_anomaly: float
-	var end_anomaly: float
-	
-	if direction >= 0:
-		# Counter-clockwise orbit: entry is at negative anomaly, exit at positive
-		start_anomaly = -max_anomaly
-		end_anomaly = max_anomaly
-	else:
-		# Clockwise orbit: entry is at positive anomaly, exit at negative
-		start_anomaly = max_anomaly
-		end_anomaly = -max_anomaly
-	
-	# Draw from entry through periapsis to exit
-	for i in range(num_points + 1):
-		var t = float(i) / float(num_points)
-		# Sweep from start_anomaly to end_anomaly
-		var true_anomaly = start_anomaly + t * (end_anomaly - start_anomaly)
-		
-		var denom = 1.0 + e * cos(true_anomaly)
-		if abs(denom) < 0.01:
-			continue
-		var r_point = p / denom
-		if r_point <= 0 or not is_finite(r_point):
-			continue
-		
-		# Position relative to target body center
-		var angle = true_anomaly + omega
-		var point_rel = Vector2(r_point * cos(angle), r_point * sin(angle))
-		
-		# Convert to world coordinates at the static encounter position
-		var point_world = target_center_world + point_rel
-		points.append(to_local(point_world))
-	
-	# Draw the hyperbola
-	var hyperbola_color = Color(color.r, color.g, color.b, 0.6)
-	var line_width = 1.5 * draw_scale
-	
-	for i in range(points.size() - 1):
-		draw_line(points[i], points[i + 1], hyperbola_color, line_width)
-	
-	# Draw periapsis marker
-	var periapsis_dist = p / (1.0 + e) if e >= 0 else abs(a)
-	var periapsis_world = target_center_world + Vector2(periapsis_dist, 0).rotated(omega)
-	var periapsis_local = to_local(periapsis_world)
-	var target_local = to_local(target_center_world)
-	var pe_direction = (periapsis_local - target_local).normalized() if periapsis_local.distance_to(target_local) > 1 else Vector2.RIGHT
-	
-	var pe_color = Color(1.0, 0.6, 0.3, 0.9)
-	draw_circle(periapsis_local, 5.0 * draw_scale, pe_color)
-	
-	# Draw Pe label
-	var pe_label_pos = periapsis_local + pe_direction * 20.0 * draw_scale
-	draw_set_transform(pe_label_pos, -rotation, Vector2(draw_scale, draw_scale))
-	draw_string(ThemeDB.fallback_font, Vector2(-8, 4), "Pe", HORIZONTAL_ALIGNMENT_CENTER, -1, 10, pe_color)
-	draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
-
-
-## Find SOI encounter with a moving body
-## Returns dictionary with encounter info or empty if no encounter found
-func _find_soi_encounter(target_body: Node2D, target_elements: OrbitalMechanics.OrbitalElements, target_soi: float) -> Dictionary:
-	var max_time = 120.0  # Check 2 minutes ahead
-	var num_samples = 240
-	var dt = max_time / num_samples
-	
-	var ref_body = _patched_conics_state.reference_body
-	if ref_body == null:
-		return {}
-	
-	# IMPORTANT: Calculate FRESH orbital elements from current position/velocity
-	var ship_rel_pos = global_position - ref_body.global_position
-	var ship_rel_vel = velocity - ref_body.velocity
-	var mu = gravitational_constant * ref_body.mass
-	var ship_elements = OrbitalMechanics.calculate_orbital_elements(ship_rel_pos, ship_rel_vel, mu)
-	
-	if ship_elements == null or not ship_elements.is_valid:
-		return {}
-	
-	# Determine orbital direction from angular momentum (h = r x v in 2D)
-	var ship_h = ship_rel_pos.x * ship_rel_vel.y - ship_rel_pos.y * ship_rel_vel.x
-	var ship_direction = 1.0 if ship_h >= 0 else -1.0
-	
-	# Target orbital direction
-	var target_rel_pos = target_body.global_position - ref_body.global_position
-	var target_rel_vel = target_body.velocity - ref_body.velocity if "velocity" in target_body else Vector2.ZERO
-	var target_h = target_rel_pos.x * target_rel_vel.y - target_rel_pos.y * target_rel_vel.x
-	var target_direction = 1.0 if target_h >= 0 else -1.0
-	
-	# Ship orbital parameters
-	var ship_a = ship_elements.semi_major_axis
-	var ship_e = ship_elements.eccentricity
-	var ship_omega = ship_elements.argument_of_periapsis
-	var ship_nu = ship_elements.true_anomaly
-	var ship_n = ship_elements.mean_motion * ship_direction
-	
-	# For elliptical orbits: p = a(1-e^2), for hyperbolic: p = |a|(e^2-1)
-	var ship_p: float
-	if ship_e < 1.0:
-		ship_p = ship_a * (1.0 - ship_e * ship_e)
-	else:
-		ship_p = abs(ship_a) * (ship_e * ship_e - 1.0)
-	
-	var ship_M0 = _true_to_mean_anomaly(ship_nu, ship_e) if ship_e < 1.0 else 0.0
-	
-	# Target orbital parameters
-	var target_a = target_elements.semi_major_axis
-	var target_e = target_elements.eccentricity
-	var target_omega = target_elements.argument_of_periapsis
-	var target_nu = target_elements.true_anomaly
-	var target_n = target_elements.mean_motion * target_direction
-	var target_p = target_a * (1.0 - target_e * target_e)
-	var target_M0 = _true_to_mean_anomaly(target_nu, target_e)
-	
-	var was_outside = true
-	
-	for i in range(num_samples + 1):
-		var t = float(i) * dt
-		
-		# Ship position at time t (relative to reference body)
-		var ship_pos: Vector2
-		
-		if ship_e < 1.0:
-			# Elliptical orbit: propagate via mean anomaly
-			var ship_M = ship_M0 + ship_n * t
-			var ship_nu_t = _mean_to_true_anomaly(ship_M, ship_e)
-			var denom = 1.0 + ship_e * cos(ship_nu_t)
-			if abs(denom) < 0.001:
-				continue
-			var ship_r = ship_p / denom
-			if ship_r <= 0 or not is_finite(ship_r):
-				continue
-			var ship_angle = ship_nu_t + ship_omega
-			ship_pos = Vector2(ship_r * cos(ship_angle), ship_r * sin(ship_angle))
-		else:
-			# Hyperbolic orbit: use linear approximation
-			ship_pos = ship_rel_pos + ship_rel_vel * t
-		
-		# Target position at time t (relative to reference body)
-		var target_M = target_M0 + target_n * t
-		var target_nu_t = _mean_to_true_anomaly(target_M, target_e)
-		var target_denom = 1.0 + target_e * cos(target_nu_t)
-		if abs(target_denom) < 0.001:
-			continue
-		var target_r = target_p / target_denom
-		var target_angle = target_nu_t + target_omega
-		var target_pos = Vector2(target_r * cos(target_angle), target_r * sin(target_angle))
-		
-		# Distance between ship and target
-		var dist = (ship_pos - target_pos).length()
-		var is_inside = dist < target_soi
-		
-		if is_inside and was_outside:
-			# Found entry - refine with binary search
-			var target_mass = target_body.mass if "mass" in target_body else 1.0
-			var target_mu = gravitational_constant * target_mass
-			var refined = _refine_soi_entry(
-				t - dt, t,
-				ship_M0, ship_n, ship_e, ship_p, ship_omega,
-				target_M0, target_n, target_e, target_p, target_omega,
-				target_soi, ship_rel_pos, ship_rel_vel, ref_body.global_position, target_mu, mu
-			)
-			return refined
-		
-		was_outside = not is_inside
-	
-	return {}
-
-
-## Refine SOI entry point using binary search
-func _refine_soi_entry(
-	t_low: float, t_high: float,
-	ship_M0: float, ship_n: float, ship_e: float, ship_p: float, ship_omega: float,
-	target_M0: float, target_n: float, target_e: float, target_p: float, target_omega: float,
-	target_soi: float, ship_rel_pos: Vector2 = Vector2.ZERO, ship_rel_vel: Vector2 = Vector2.ZERO,
-	ref_body_pos: Vector2 = Vector2.ZERO, target_mu: float = 1.0, ref_mu: float = 1.0
-) -> Dictionary:
-	for _iter in range(15):
-		var t_mid = (t_low + t_high) / 2.0
-		
-		# Ship position at t_mid
-		var ship_pos: Vector2
-		if ship_e < 1.0:
-			var ship_M = ship_M0 + ship_n * t_mid
-			var ship_nu_t = _mean_to_true_anomaly(ship_M, ship_e)
-			var ship_r = ship_p / (1.0 + ship_e * cos(ship_nu_t)) if abs(1.0 + ship_e * cos(ship_nu_t)) > 0.001 else INF
-			var ship_angle = ship_nu_t + ship_omega
-			ship_pos = Vector2(ship_r * cos(ship_angle), ship_r * sin(ship_angle))
-		else:
-			# Hyperbolic: linear approximation
-			ship_pos = ship_rel_pos + ship_rel_vel * t_mid
-		
-		# Target position at t_mid
-		var target_M = target_M0 + target_n * t_mid
-		var target_nu_t = _mean_to_true_anomaly(target_M, target_e)
-		var target_r = target_p / (1.0 + target_e * cos(target_nu_t))
-		var target_angle = target_nu_t + target_omega
-		var target_pos = Vector2(target_r * cos(target_angle), target_r * sin(target_angle))
-		
-		var dist = (ship_pos - target_pos).length()
-		
-		if dist < target_soi:
-			t_high = t_mid  # Entry is before this point
-		else:
-			t_low = t_mid  # Entry is after this point
-		
-		if abs(t_high - t_low) < 0.05:
-			break
-	
-	var t_entry = (t_low + t_high) / 2.0
-	
-	# Calculate final positions and velocities using proper orbital mechanics
-	var ship_pos: Vector2
-	var ship_vel: Vector2
-	if ship_e < 1.0:
-		var ship_M = ship_M0 + ship_n * t_entry
-		var ship_nu_t = _mean_to_true_anomaly(ship_M, ship_e)
-		var ship_r = ship_p / (1.0 + ship_e * cos(ship_nu_t)) if abs(1.0 + ship_e * cos(ship_nu_t)) > 0.001 else INF
-		var ship_angle = ship_nu_t + ship_omega
-		ship_pos = Vector2(ship_r * cos(ship_angle), ship_r * sin(ship_angle))
-		
-		# Calculate velocity using mu/h approach (preserves orbital direction)
-		# h = sqrt(mu * p) with sign from orbital direction
-		var ship_h = sqrt(ref_mu * ship_p) * sign(ship_n)
-		if abs(ship_h) > 0.001:
-			# v_r = (μ/h) * e * sin(ν)
-			# v_t = (μ/h) * (1 + e*cos(ν))
-			var v_r = (ref_mu / ship_h) * ship_e * sin(ship_nu_t)
-			var v_t = (ref_mu / ship_h) * (1.0 + ship_e * cos(ship_nu_t))
-			
-			var radial_dir = Vector2(cos(ship_angle), sin(ship_angle))
-			var tangent_dir = Vector2(-sin(ship_angle), cos(ship_angle))
-			ship_vel = radial_dir * v_r + tangent_dir * v_t
-		else:
-			ship_vel = ship_rel_vel
-	else:
-		# Hyperbolic: linear approximation
-		ship_pos = ship_rel_pos + ship_rel_vel * t_entry
-		ship_vel = ship_rel_vel  # Constant velocity for linear approximation
-	
-	# Target position and velocity at t_entry
-	var target_M = target_M0 + target_n * t_entry
-	var target_nu_t = _mean_to_true_anomaly(target_M, target_e)
-	var target_r = target_p / (1.0 + target_e * cos(target_nu_t))
-	var target_angle = target_nu_t + target_omega
-	var target_pos = Vector2(target_r * cos(target_angle), target_r * sin(target_angle))
-	
-	# Calculate target velocity using mu/h approach
-	var target_h = sqrt(ref_mu * target_p) * sign(target_n)
-	var target_vel: Vector2 = Vector2.ZERO
-	if abs(target_h) > 0.001:
-		var target_v_r = (ref_mu / target_h) * target_e * sin(target_nu_t)
-		var target_v_t = (ref_mu / target_h) * (1.0 + target_e * cos(target_nu_t))
-		
-		var target_radial_dir = Vector2(cos(target_angle), sin(target_angle))
-		var target_tangent_dir = Vector2(-sin(target_angle), cos(target_angle))
-		target_vel = target_radial_dir * target_v_r + target_tangent_dir * target_v_t
-	
-	# Calculate world positions (static - captured at calculation time)
-	var encounter_world_pos = ref_body_pos + ship_pos
-	var rel_pos = ship_pos - target_pos  # Ship pos relative to target
-	var rel_vel = ship_vel - target_vel  # Ship vel relative to target
-	
-	# CRITICAL: Normalize relative position to exactly the SOI boundary
-	# This ensures the encounter point is precisely on the SOI edge
-	var actual_distance = rel_pos.length()
-	if actual_distance > 0.1:
-		rel_pos = rel_pos.normalized() * target_soi
-		# Adjust ship_pos to match the normalized entry point
-		ship_pos = target_pos + rel_pos
-		encounter_world_pos = ref_body_pos + ship_pos
-	
-	var target_center_world = encounter_world_pos - rel_pos
-	
-	return {
-		"time": t_entry,
-		"ship_pos": ship_pos,
-		"ship_vel": ship_vel,
-		"target_pos": target_pos,
-		"target_vel": target_vel,
-		"encounter_world_pos": encounter_world_pos,
-		"target_center_world": target_center_world,
-		"rel_pos": rel_pos,
-		"rel_vel": rel_vel,
-		"target_mu": target_mu
-	}
+	# Delegate all trajectory drawing to the visualization module
+	_trajectory_viz.draw_trajectories(
+		self,  # Ship node for drawing context
+		global_position,
+		velocity,
+		_patched_conics_state,
+		central_bodies,
+		_is_thrusting,
+		gravity_calculation_mode,
+		boundary_left,
+		boundary_top,
+		boundary_right,
+		boundary_bottom
+	)
 
 
 # =============================================================================
@@ -1140,54 +477,3 @@ func toggle_prograde_lock() -> void:
 ## Toggle retrograde lock (public API)
 func toggle_retrograde_lock() -> void:
 	_toggle_retrograde_lock()
-
-
-# =============================================================================
-# ANOMALY CONVERSION UTILITIES
-# =============================================================================
-
-## Convert true anomaly to mean anomaly (for elliptical orbits)
-func _true_to_mean_anomaly(true_anomaly: float, eccentricity: float) -> float:
-	var e = eccentricity
-	var nu = true_anomaly
-	
-	# Eccentric anomaly: tan(E/2) = sqrt((1-e)/(1+e)) * tan(nu/2)
-	var half_nu = nu / 2.0
-	var tan_half_nu = tan(half_nu)
-	var factor = sqrt((1.0 - e) / (1.0 + e)) if e < 1.0 else 1.0
-	var tan_half_E = factor * tan_half_nu
-	var E = 2.0 * atan(tan_half_E)
-	
-	# Mean anomaly: M = E - e*sin(E)
-	var M = E - e * sin(E)
-	
-	return M
-
-
-## Convert mean anomaly to true anomaly using Newton-Raphson iteration
-func _mean_to_true_anomaly(mean_anomaly: float, eccentricity: float) -> float:
-	var M = fmod(mean_anomaly, TAU)
-	if M < 0:
-		M += TAU
-	
-	var e = eccentricity
-	
-	# Solve Kepler's equation: M = E - e*sin(E) for E
-	var E = M  # Initial guess
-	for i in range(10):
-		var f = E - e * sin(E) - M
-		var f_prime = 1.0 - e * cos(E)
-		if abs(f_prime) < 1e-10:
-			break
-		E = E - f / f_prime
-		if abs(f) < 1e-10:
-			break
-	
-	# Convert eccentric anomaly to true anomaly
-	var half_E = E / 2.0
-	var tan_half_E = tan(half_E)
-	var factor = sqrt((1.0 + e) / (1.0 - e)) if e < 1.0 else 1.0
-	var tan_half_nu = factor * tan_half_E
-	var nu = 2.0 * atan(tan_half_nu)
-	
-	return nu
