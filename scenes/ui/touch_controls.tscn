@@ -1,14 +1,14 @@
 [gd_scene load_steps=11 format=3 uid="uid://btouchcontrols_scene"]
 
-[ext_resource type="Script" path="res://scripts/touch_controls_manager.gd" id="1_touch_mgr"]
+[ext_resource type="Script" path="res://scripts/ui/touch_controls_manager.gd" id="1_touch_mgr"]
 [ext_resource type="Texture2D" uid="uid://c2s2aw07goloe" path="res://Assets/Sprites/Turn Left.PNG" id="2_left"]
 [ext_resource type="Texture2D" uid="uid://bkdb5pkkjext5" path="res://Assets/Sprites/Turn Right Mobile Touch control.PNG" id="3_right"]
-[ext_resource type="Script" path="res://scripts/touch_rotate_button.gd" id="4_rotate_btn"]
+[ext_resource type="Script" path="res://scripts/ui/touch_rotate_button.gd" id="4_rotate_btn"]
 [ext_resource type="Texture2D" uid="uid://b8poanb6efsb0" path="res://Assets/Sprites/Thrust Mobile Button.PNG" id="5_thrust"]
 [ext_resource type="Texture2D" uid="uid://d0oo3cw8ue2cu" path="res://Assets/Sprites/Reset Button Touch Control.PNG" id="6_reset"]
-[ext_resource type="Script" path="res://scripts/touch_reset_button.gd" id="7_reset_btn"]
+[ext_resource type="Script" path="res://scripts/ui/touch_reset_button.gd" id="7_reset_btn"]
 [ext_resource type="Texture2D" uid="uid://bgelqkalese1f" path="res://Assets/Sprites/Prograde Touch Control.PNG" id="8_prograde"]
-[ext_resource type="Script" path="res://scripts/touch_toggle_button.gd" id="9_toggle_btn"]
+[ext_resource type="Script" path="res://scripts/ui/touch_toggle_button.gd" id="9_toggle_btn"]
 
 [node name="TouchControls" type="CanvasLayer"]
 script = ExtResource("1_touch_mgr")

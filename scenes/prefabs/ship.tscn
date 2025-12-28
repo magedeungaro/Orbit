@@ -1,6 +1,6 @@
 [gd_scene load_steps=12 format=3 uid="uid://ship_prefab_scene"]
 
-[ext_resource type="Script" uid="uid://bwh1penr54ifo" path="res://scripts/orbiting_body.gd" id="1_ship"]
+[ext_resource type="Script" uid="uid://bwh1penr54ifo" path="res://scripts/player/orbiting_body.gd" id="1_ship"]
 [ext_resource type="Texture2D" uid="uid://sfjq0xncsu0a" path="res://Assets/Sprites/Ship.PNG" id="2_ship_tex"]
 [ext_resource type="Texture2D" uid="uid://djr7bg0t0hmgn" path="res://Assets/Sprites/explosion.png" id="3_explosion"]
 [ext_resource type="Texture2D" uid="uid://d37d55a3m42u3" path="res://Assets/Sprites/engine.png" id="4_engine"]

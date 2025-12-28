@@ -75,6 +75,10 @@ var orbits_around: Planet = null
 		is_target = value
 		queue_redraw()
 
+@export_group("Debug")
+## Enable debug logging for orbital mechanics
+@export var debug_orbital_motion: bool = false
+
 @export_group("Editor Visualization")
 ## Show the sphere of influence in the editor
 @export var show_soi_in_editor: bool = true:
@@ -106,6 +110,15 @@ var orbits_around: Planet = null
 var velocity: Vector2 = Vector2.ZERO
 ## All other planets in the scene (for multi-body gravitational interactions)
 var other_planets: Array = []
+
+## Keplerian orbital state (for analytical propagation)
+var _orbital_elements: OrbitalMechanics.OrbitalElements = null
+var _orbit_epoch_time: float = 0.0  # Time when orbital elements were calculated
+var _use_keplerian_propagation: bool = true  # Use analytical Keplerian motion
+
+## Debug logging
+var _debug_frame_counter: int = 0
+const DEBUG_LOG_INTERVAL: int = 60  # Log every 60 frames
 
 
 func _ready() -> void:
@@ -163,24 +176,57 @@ func _initialize_orbit() -> void:
 			_initialize_custom_orbit()
 		else:
 			# Calculate circular orbital velocity based on current position
-			var direction_to_parent = orbits_around.global_position - global_position
-			var distance = direction_to_parent.length()
-			
-			if distance > 0:
-				# v = sqrt(G * M / r) for circular orbit
-				var orbital_speed = sqrt(orbital_gravitational_constant * orbits_around.mass / distance)
-				
-				# Calculate perpendicular direction for orbital velocity
-				var perpendicular = direction_to_parent.normalized().rotated(PI / 2 if orbit_counter_clockwise else -PI / 2)
-				var relative_velocity = perpendicular * orbital_speed
-				
-				# Add parent's velocity so the moon moves with the parent in global frame
-				if "velocity" in orbits_around:
-					velocity = relative_velocity + orbits_around.velocity
-				else:
-					velocity = relative_velocity
+			_initialize_circular_orbit()
 	else:
 		velocity = initial_velocity
+		_use_keplerian_propagation = false  # Use numerical fallback
+
+
+## Initialize a circular orbit based on current position
+func _initialize_circular_orbit() -> void:
+	if orbits_around == null:
+		return
+	
+	var direction_to_parent = orbits_around.global_position - global_position
+	var distance = direction_to_parent.length()
+	
+	if distance <= 0:
+		return
+	
+	var mu = orbital_gravitational_constant * orbits_around.mass
+	
+	# v = sqrt(G * M / r) for circular orbit
+	var orbital_speed = sqrt(mu / distance)
+	
+	# Calculate perpendicular direction for orbital velocity
+	var perpendicular = direction_to_parent.normalized().rotated(PI / 2 if orbit_counter_clockwise else -PI / 2)
+	var relative_velocity = perpendicular * orbital_speed
+	
+	# Add parent's velocity so the moon moves with the parent in global frame
+	if "velocity" in orbits_around:
+		velocity = relative_velocity + orbits_around.velocity
+	else:
+		velocity = relative_velocity
+	
+	# Store orbital elements for Keplerian propagation (circular orbit: e = 0)
+	var rel_pos = global_position - orbits_around.global_position
+	var omega = atan2(rel_pos.y, rel_pos.x)  # Current angle is argument of periapsis for circular
+	
+	_orbital_elements = OrbitalMechanics.OrbitalElements.new()
+	_orbital_elements.semi_major_axis = distance
+	_orbital_elements.eccentricity = 0.0  # Circular orbit
+	_orbital_elements.argument_of_periapsis = omega
+	_orbital_elements.true_anomaly = 0.0  # Start at "periapsis" (any point for circular)
+	_orbital_elements.angular_momentum = sqrt(mu * distance)  # h = sqrt(μ * a) for circular
+	_orbital_elements.semi_minor_axis = distance
+	_orbital_elements.periapsis = distance
+	_orbital_elements.apoapsis = distance
+	_orbital_elements.orbital_period = TAU * sqrt(pow(distance, 3) / mu)
+	_orbital_elements.mean_motion = TAU / _orbital_elements.orbital_period
+	_orbital_elements.is_valid = true
+	
+	# Record the epoch time
+	_orbit_epoch_time = Time.get_ticks_msec() / 1000.0
 
 
 ## Initialize orbit using custom orbital parameters (semi-major axis, eccentricity, etc.)
@@ -240,6 +286,23 @@ func _initialize_custom_orbit() -> void:
 		velocity = relative_velocity + orbits_around.velocity
 	else:
 		velocity = relative_velocity
+	
+	# Store orbital elements for Keplerian propagation
+	_orbital_elements = OrbitalMechanics.OrbitalElements.new()
+	_orbital_elements.semi_major_axis = a
+	_orbital_elements.eccentricity = e
+	_orbital_elements.argument_of_periapsis = omega
+	_orbital_elements.true_anomaly = nu
+	_orbital_elements.angular_momentum = h
+	_orbital_elements.semi_minor_axis = a * sqrt(1.0 - e * e)
+	_orbital_elements.periapsis = a * (1.0 - e)
+	_orbital_elements.apoapsis = a * (1.0 + e)
+	_orbital_elements.orbital_period = TAU * sqrt(pow(a, 3) / mu)
+	_orbital_elements.mean_motion = TAU / _orbital_elements.orbital_period
+	_orbital_elements.is_valid = true
+	
+	# Record the epoch time
+	_orbit_epoch_time = Time.get_ticks_msec() / 1000.0
 
 
 func _process(_delta: float) -> void:
@@ -248,7 +311,7 @@ func _process(_delta: float) -> void:
 		queue_redraw()
 
 
-func _physics_process(delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	
@@ -256,12 +319,126 @@ func _physics_process(delta: float) -> void:
 	if is_static:
 		return
 	
-	# Apply gravitational forces from all other planets
-	_apply_gravity(delta)
+	# Only move if we orbit something
+	if orbits_around == null:
+		return
 	
-	# Update position based on velocity
-	if velocity.length() > 0:
-		global_position += velocity * delta
+	# Debug logging
+	_debug_frame_counter += 1
+	
+	# Use Keplerian propagation for consistent orbital mechanics
+	if _use_keplerian_propagation and _orbital_elements != null and _orbital_elements.is_valid:
+		_propagate_keplerian_orbit()
+	else:
+		# Fallback to numerical integration if Keplerian fails
+		_apply_gravity(_delta)
+		if velocity.length() > 0:
+			global_position += velocity * _delta
+
+
+## Propagate orbit using analytical Keplerian mechanics
+## This uses the same math as the ship's trajectory prediction
+func _propagate_keplerian_orbit() -> void:
+	if orbits_around == null or _orbital_elements == null:
+		return
+	
+	var elements = _orbital_elements
+	var mu = orbital_gravitational_constant * orbits_around.mass
+	
+	# Get current time since epoch
+	var current_time = Time.get_ticks_msec() / 1000.0
+	var elapsed_time = current_time - _orbit_epoch_time
+	
+	# Calculate mean anomaly at current time: M = M0 + n * t
+	var initial_mean_anomaly = _true_to_mean_anomaly(elements.true_anomaly, elements.eccentricity)
+	var current_mean_anomaly = initial_mean_anomaly + elements.mean_motion * elapsed_time
+	
+	# Solve Kepler's equation to get current true anomaly
+	var current_true_anomaly = _mean_to_true_anomaly(current_mean_anomaly, elements.eccentricity)
+	
+	# Calculate position from true anomaly
+	var a = elements.semi_major_axis
+	var e = elements.eccentricity
+	var omega = elements.argument_of_periapsis
+	var p = a * (1.0 - e * e)  # Semi-latus rectum
+	
+	var r = p / (1.0 + e * cos(current_true_anomaly))
+	var angle = current_true_anomaly + omega
+	
+	# Position relative to parent
+	var rel_pos = Vector2(r * cos(angle), r * sin(angle))
+	global_position = orbits_around.global_position + rel_pos
+	
+	# Calculate velocity from orbital mechanics
+	# v_r = (mu/h) * e * sin(nu)  (radial component)
+	# v_t = (mu/h) * (1 + e * cos(nu))  (tangential component)
+	var h = elements.angular_momentum
+	if h > 0:
+		var v_r = (mu / h) * e * sin(current_true_anomaly)
+		var v_t = (mu / h) * (1.0 + e * cos(current_true_anomaly))
+		
+		var radial_dir = rel_pos.normalized()
+		var tangent_dir = radial_dir.rotated(PI / 2 if orbit_counter_clockwise else -PI / 2)
+		
+		# Combine components for relative velocity
+		var relative_velocity: Vector2
+		if orbit_counter_clockwise:
+			relative_velocity = radial_dir * v_r + tangent_dir * v_t
+		else:
+			relative_velocity = radial_dir * (-v_r) + tangent_dir * v_t
+		
+		# Add parent's velocity for global velocity
+		if "velocity" in orbits_around:
+			velocity = relative_velocity + orbits_around.velocity
+		else:
+			velocity = relative_velocity
+
+
+## Convert true anomaly to mean anomaly (for elliptical orbits)
+func _true_to_mean_anomaly(true_anomaly: float, eccentricity: float) -> float:
+	var e = eccentricity
+	var nu = true_anomaly
+	
+	# Eccentric anomaly: tan(E/2) = sqrt((1-e)/(1+e)) * tan(nu/2)
+	var half_nu = nu / 2.0
+	var tan_half_nu = tan(half_nu)
+	var factor = sqrt((1.0 - e) / (1.0 + e))
+	var tan_half_E = factor * tan_half_nu
+	var E = 2.0 * atan(tan_half_E)
+	
+	# Mean anomaly: M = E - e*sin(E)
+	var M = E - e * sin(E)
+	
+	return M
+
+
+## Convert mean anomaly to true anomaly using Newton-Raphson iteration
+func _mean_to_true_anomaly(mean_anomaly: float, eccentricity: float) -> float:
+	var M = fmod(mean_anomaly, TAU)
+	if M < 0:
+		M += TAU
+	
+	var e = eccentricity
+	
+	# Solve Kepler's equation: M = E - e*sin(E) for E
+	var E = M  # Initial guess
+	for _i in range(10):
+		var f = E - e * sin(E) - M
+		var f_prime = 1.0 - e * cos(E)
+		if abs(f_prime) < 1e-10:
+			break
+		E = E - f / f_prime
+		if abs(f) < 1e-10:
+			break
+	
+	# Convert eccentric anomaly to true anomaly
+	var half_E = E / 2.0
+	var tan_half_E = tan(half_E)
+	var factor = sqrt((1.0 + e) / (1.0 - e))
+	var tan_half_nu = factor * tan_half_E
+	var nu = 2.0 * atan(tan_half_nu)
+	
+	return nu
 
 
 func _apply_gravity(delta: float) -> void:
@@ -407,6 +584,40 @@ func get_orbital_speed() -> float:
 ## Check if this planet is in a stable orbit
 func is_orbiting() -> bool:
 	return orbits_around != null and velocity.length() > 0
+
+
+## Get the current orbital elements (for external calculations like SOI intersection)
+## Returns a copy with updated true anomaly based on current time
+func get_orbital_elements() -> OrbitalMechanics.OrbitalElements:
+	if _orbital_elements == null or not _orbital_elements.is_valid:
+		return null
+	
+	# Create a copy with current true anomaly
+	var elements = OrbitalMechanics.OrbitalElements.new()
+	elements.semi_major_axis = _orbital_elements.semi_major_axis
+	elements.eccentricity = _orbital_elements.eccentricity
+	elements.argument_of_periapsis = _orbital_elements.argument_of_periapsis
+	elements.angular_momentum = _orbital_elements.angular_momentum
+	elements.semi_minor_axis = _orbital_elements.semi_minor_axis
+	elements.periapsis = _orbital_elements.periapsis
+	elements.apoapsis = _orbital_elements.apoapsis
+	elements.orbital_period = _orbital_elements.orbital_period
+	elements.mean_motion = _orbital_elements.mean_motion
+	elements.is_valid = _orbital_elements.is_valid
+	
+	# Calculate current true anomaly
+	var current_time = Time.get_ticks_msec() / 1000.0
+	var elapsed_time = current_time - _orbit_epoch_time
+	var initial_mean_anomaly = _true_to_mean_anomaly(_orbital_elements.true_anomaly, _orbital_elements.eccentricity)
+	var current_mean_anomaly = initial_mean_anomaly + _orbital_elements.mean_motion * elapsed_time
+	elements.true_anomaly = _mean_to_true_anomaly(current_mean_anomaly, _orbital_elements.eccentricity)
+	
+	return elements
+
+
+## Get the orbit epoch time (when orbital elements were calculated)
+func get_orbit_epoch_time() -> float:
+	return _orbit_epoch_time
 
 
 ## Inner class for target indicator that renders on top of the sprite

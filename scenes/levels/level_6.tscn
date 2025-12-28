@@ -5,7 +5,7 @@
 [ext_resource type="Script" uid="uid://derr4cln3we0j" path="res://scripts/camera_follow.gd" id="3_m5qie"]
 [ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/orbit_visualization.gd" id="4_kydov"]
 [ext_resource type="PackedScene" path="res://scenes/prefabs/ship.tscn" id="5_uwlxl"]
-[ext_resource type="Script" uid="uid://0baglt5002m1" path="res://scripts/central_body.gd" id="6_4wfvb"]
+[ext_resource type="Script" uid="uid://0baglt5002m1" path="res://scripts/celestial/central_body.gd" id="6_4wfvb"]
 [ext_resource type="Texture2D" uid="uid://bvev41whwp4ii" path="res://Assets/Sprites/Planet 1.PNG" id="7_tqv5a"]
 [ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="8_ppjov"]
 
@@ -49,6 +49,7 @@ script = ExtResource("4_kydov")
 
 [node name="Ship" parent="Player" instance=ExtResource("5_uwlxl")]
 position = Vector2(1500, 3000)
+gravity_calculation_mode = 0
 initial_velocity = Vector2(0, 410)
 thrust_force = 60.0
 boundary_left = -10000.0

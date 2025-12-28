@@ -275,4 +275,3 @@ class GoalIndicator extends Control:
 			var head_right = arrow_pos - direction * arrow_head_size - perp * (arrow_head_size * 0.6)
 			var arrow_head = PackedVector2Array([arrow_pos, head_left, head_right])
 			draw_colored_polygon(arrow_head, arrow_color)
-
