@@ -293,24 +293,18 @@ func _draw_trajectory_hyperbola(ship: Node2D, patched_conics_state) -> void:
 
 ## Draw apsis marker
 func _draw_apsis_marker(ship: Node2D, pos: Vector2, direction: Vector2, color: Color, label: String, draw_scale: float = 1.0) -> void:
-	var chevron_size = 12.0 * draw_scale
 	var marker_radius = 6.0 * draw_scale
-	var chevron_offset = 18.0 * draw_scale
-	var label_offset_dist = 40.0 * draw_scale
-	var line_width = 3.0 * draw_scale
 	
+	# Draw the point
 	ship.draw_circle(pos, marker_radius, color)
 	
-	var perp = Vector2(-direction.y, direction.x)
-	var chevron_tip = pos + direction * chevron_offset
-	var chevron_left = chevron_tip - direction * chevron_size + perp * chevron_size * 0.6
-	var chevron_right = chevron_tip - direction * chevron_size - perp * chevron_size * 0.6
-	
-	ship.draw_line(chevron_left, chevron_tip, color, line_width)
-	ship.draw_line(chevron_right, chevron_tip, color, line_width)
-	
-	var label_offset = direction * label_offset_dist
-	var label_pos = pos + label_offset
+	# Fixed 11 o'clock position for label (counter-rotate by ship rotation to keep screen-fixed)
+	# 11 o'clock is roughly -45 degrees from vertical (-135 degrees from horizontal)
+	var eleven_oclock = Vector2(-0.7071, -0.7071)  # Normalized diagonal up-left in screen space
+	# Counter-rotate by negative ship rotation to keep it fixed on screen
+	var screen_fixed_offset = eleven_oclock.rotated(-ship.rotation)
+	var label_offset_dist = 25.0 * draw_scale
+	var label_pos = pos + screen_fixed_offset * label_offset_dist
 	
 	ship.draw_set_transform(label_pos, -ship.rotation, Vector2(draw_scale, draw_scale))
 	ship.draw_string(ThemeDB.fallback_font, Vector2(-8, 4), label, HORIZONTAL_ALIGNMENT_CENTER, -1, 14, color)
@@ -368,13 +362,18 @@ func _draw_soi_encounter_predictions(ship: Node2D, ship_position: Vector2, ship_
 		var encounter_local = ship.to_local(encounter_world_pos)
 		
 		var encounter_color = Color(0.3, 1.0, 0.5, 0.9)
-		ship.draw_circle(encounter_local, 12.0 * draw_scale, encounter_color)
+		# Smaller encounter marker (4.0 instead of 12.0)
+		ship.draw_circle(encounter_local, 4.0 * draw_scale, encounter_color)
 		
 		_draw_encounter_hyperbola(ship, encounter, body_soi, target_center_world, draw_scale, encounter_color)
 		
 		var elapsed_time = (Time.get_ticks_msec() / 1000.0) - _cached_soi_encounter_timestamp
 		var time_remaining = max(0.0, encounter["time"] - elapsed_time)
-		var label_pos = encounter_local + Vector2.UP * 25.0 * draw_scale
+		# Fixed 11 o'clock position for time label (counter-rotate by ship rotation to keep screen-fixed)
+		var eleven_oclock = Vector2(-0.7071, -0.7071)  # Normalized diagonal up-left in screen space
+		# Counter-rotate by negative ship rotation to keep it fixed on screen
+		var screen_fixed_offset = eleven_oclock.rotated(-ship.rotation)
+		var label_pos = encounter_local + screen_fixed_offset * 20.0 * draw_scale
 		var label_text = "%.0fs" % time_remaining
 		
 		ship.draw_set_transform(label_pos, -ship.rotation, Vector2(draw_scale, draw_scale))
