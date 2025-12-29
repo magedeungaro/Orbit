@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=2 format=3 uid="uid://c7nlyu33ews5h"]
 
-[ext_resource type="Theme" uid="uid://ui_theme_audiowide" path="res://Assets/ui_theme.tres" id="1_theme"]
+[ext_resource type="Theme" path="res://Assets/ui_theme.tres" id="1_theme"]
 
 [node name="LevelSelectScreen" type="Control"]
 layout_mode = 3
@@ -81,8 +81,8 @@ theme_override_constants/separation = 15
 
 [node name="LevelNameLabel" type="Label" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
 theme_override_constants/line_spacing = 4
+theme_override_font_sizes/font_size = 32
 text = "First Steps"
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -91,30 +91,14 @@ autowrap_mode = 3
 layout_mode = 2
 
 [node name="ThumbnailContainer" type="CenterContainer" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
-custom_minimum_size = Vector2(0, 200)
+custom_minimum_size = Vector2(0, 400)
 layout_mode = 2
 
-[node name="ThumbnailRect" type="ColorRect" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer/ThumbnailContainer"]
-custom_minimum_size = Vector2(400, 200)
+[node name="ThumbnailRect" type="TextureRect" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer/ThumbnailContainer"]
+custom_minimum_size = Vector2(500, 350)
 layout_mode = 2
-color = Color(0.2, 0.2, 0.2, 1)
-
-[node name="ThumbnailLabel" type="Label" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer/ThumbnailContainer/ThumbnailRect"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -100.0
-offset_top = -14.0
-offset_right = 100.0
-offset_bottom = 14.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_font_sizes/font_size = 20
-text = "Thumbnail"
-horizontal_alignment = 1
+expand_mode = 3
+stretch_mode = 5
 
 [node name="TagsContainer" type="HBoxContainer" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2

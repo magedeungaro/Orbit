@@ -450,9 +450,16 @@ func _update_level_detail_panel(level: LevelConfig) -> void:
 	var name_label = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/LevelNameLabel")
 	var desc_label = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/DescriptionScroll/DescriptionLabel")
 	var tags_container = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/TagsContainer")
+	var thumbnail_rect = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/ThumbnailContainer/ThumbnailRect")
 	
 	name_label.text = level.level_name
 	desc_label.text = level.description
+	
+	# Set thumbnail
+	if level.thumbnail:
+		thumbnail_rect.texture = level.thumbnail
+	else:
+		thumbnail_rect.texture = null
 	
 	# Clear and populate tags
 	for child in tags_container.get_children():
