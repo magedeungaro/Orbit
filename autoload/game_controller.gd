@@ -122,7 +122,15 @@ func _input(event: InputEvent) -> void:
 	# Handle Enter/Space on level select screen to start selected level
 	if current_state == GameState.LEVEL_SELECT and level_select_screen and level_select_screen.visible:
 		if event.is_action_pressed("ui_accept") or (event is InputEventKey and event.pressed and event.keycode == KEY_SPACE):
-			if selected_level_id > 0:
+			# Check if Play button or any level button has focus
+			var play_button = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/ButtonsContainer/PlayButton")
+			var has_level_button_focus = false
+			for btn in level_buttons:
+				if btn.has_focus():
+					has_level_button_focus = true
+					break
+			
+			if selected_level_id > 0 and (play_button.has_focus() or has_level_button_focus):
 				_on_level_play_button_pressed()
 				get_viewport().set_input_as_handled()
 
@@ -135,7 +143,7 @@ func _setup_ui_screens() -> void:
 	options_button = start_screen.get_node("CenterContainer/VBoxContainer/OptionsButton")
 	discord_button = start_screen.get_node("CenterContainer/VBoxContainer/DiscordButton")
 	quit_button = start_screen.get_node("CenterContainer/VBoxContainer/QuitButton")
-	start_button.pressed.connect(_on_start_pressed)
+	# start_button.pressed.connect(_on_start_pressed)  # Disabled for Story Mode coming soon
 	level_select_button.pressed.connect(_on_level_select_pressed)
 	options_button.pressed.connect(_on_options_pressed)
 	discord_button.pressed.connect(_on_discord_pressed)
