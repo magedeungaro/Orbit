@@ -23,7 +23,8 @@ radius = 156.0
 script = ExtResource("1_config")
 level_id = 3
 level_name = "The Gauntlet"
-description = "Navigate through a tight cluster of planets"
+description = "Thread the needle through a dangerous cluster of planets. Precision piloting required to avoid collisions while managing limited fuel."
+tags = Array[String](["Hard", "Patched Conic", "Static Planets", "Challenge"])
 max_fuel = 600.0
 stable_orbit_time = 12.0
 

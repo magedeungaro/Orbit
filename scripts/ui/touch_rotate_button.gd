@@ -13,6 +13,10 @@ func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return
 	
+	# Don't inject input actions when not in PLAYING state
+	if GameController and GameController.current_state != GameController.GameState.PLAYING:
+		return
+	
 	if event is InputEventScreenTouch:
 		var touch_event = event as InputEventScreenTouch
 		if touch_event.pressed:

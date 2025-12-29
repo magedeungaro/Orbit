@@ -23,7 +23,8 @@ radius = 156.0
 script = ExtResource("1_config")
 level_id = 4
 level_name = "Deep Space"
-description = "A long journey with limited fuel"
+description = "Embark on an extended voyage across vast distances. Every drop of fuel counts in this endurance challenge."
+tags = Array[String](["Hard", "Patched Conic", "Static Planets", "Challenge"])
 max_fuel = 500.0
 stable_orbit_time = 15.0
 

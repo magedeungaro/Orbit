@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=4 format=3 uid="uid://cnuj0gpkptqjl"]
 
-[ext_resource type="Theme" uid="uid://ui_theme_audiowide" path="res://Assets/ui_theme.tres" id="1_theme"]
+[ext_resource type="Theme" path="res://Assets/ui_theme.tres" id="1_theme"]
+[ext_resource type="Texture2D" uid="uid://bwj8k7m3qn5vx" path="res://Assets/Sprites/discord_icon.svg" id="2_discord"]
+[ext_resource type="FontFile" uid="uid://cvy207ppkmbx4" path="res://Assets/fonts/NotoColorEmoji/NotoColorEmoji.ttf" id="3_emoji"]
 
 [node name="StartScreen" type="Control"]
 layout_mode = 3
@@ -9,6 +11,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 theme = ExtResource("1_theme")
 
 [node name="Overlay" type="ColorRect" parent="."]
@@ -73,19 +76,87 @@ layout_mode = 2
 custom_minimum_size = Vector2(250, 55)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "START GAME"
+disabled = true
+text = "STORY MODE"
+
+[node name="StarshipEmoji" type="Label" parent="CenterContainer/VBoxContainer/StartButton"]
+layout_mode = 0
+offset_left = 15.0
+offset_top = 10.0
+offset_right = 47.0
+offset_bottom = 45.0
+theme_override_fonts/font = ExtResource("3_emoji")
+theme_override_font_sizes/font_size = 28
+text = "🚀"
+vertical_alignment = 1
+
+[node name="ComingSoonLabel" type="Label" parent="CenterContainer/VBoxContainer/StartButton"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -51.99994
+offset_top = -27.0
+offset_right = 45.00006
+offset_bottom = -3.0
+grow_horizontal = 0
+rotation = 0.0872665
+theme_override_colors/font_color = Color(1, 0.9, 0.2, 1)
+theme_override_font_sizes/font_size = 14
+text = "Coming soon"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="LevelSelectButton" type="Button" parent="CenterContainer/VBoxContainer"]
 custom_minimum_size = Vector2(250, 55)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "SELECT LEVEL"
+text = "SCENARIOS"
+
+[node name="PlanetEmoji" type="Label" parent="CenterContainer/VBoxContainer/LevelSelectButton"]
+layout_mode = 0
+offset_left = 15.0
+offset_top = 10.0
+offset_right = 47.0
+offset_bottom = 45.0
+theme_override_fonts/font = ExtResource("3_emoji")
+theme_override_font_sizes/font_size = 28
+text = "🪐"
+vertical_alignment = 1
 
 [node name="OptionsButton" type="Button" parent="CenterContainer/VBoxContainer"]
 custom_minimum_size = Vector2(250, 55)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "OPTIONS"
+
+[node name="CogEmoji" type="Label" parent="CenterContainer/VBoxContainer/OptionsButton"]
+layout_mode = 0
+offset_left = 15.0
+offset_top = 10.0
+offset_right = 47.0
+offset_bottom = 45.0
+theme_override_fonts/font = ExtResource("3_emoji")
+theme_override_font_sizes/font_size = 28
+text = "⚙️"
+vertical_alignment = 1
+
+[node name="DiscordButton" type="Button" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(250, 55)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "DISCORD"
+
+[node name="DiscordIcon" type="TextureRect" parent="CenterContainer/VBoxContainer/DiscordButton"]
+layout_mode = 0
+offset_left = 15.0
+offset_top = 11.5
+offset_right = 47.0
+offset_bottom = 43.5
+mouse_filter = 2
+texture = ExtResource("2_discord")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Spacer3" type="Control" parent="CenterContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 20)
@@ -96,3 +167,14 @@ custom_minimum_size = Vector2(250, 55)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "QUIT GAME"
+
+[node name="DoorEmoji" type="Label" parent="CenterContainer/VBoxContainer/QuitButton"]
+layout_mode = 0
+offset_left = 15.0
+offset_top = 10.0
+offset_right = 47.0
+offset_bottom = 45.0
+theme_override_fonts/font = ExtResource("3_emoji")
+theme_override_font_sizes/font_size = 28
+text = "🚪"
+vertical_alignment = 1
