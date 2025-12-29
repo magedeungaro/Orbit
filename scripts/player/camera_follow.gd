@@ -36,6 +36,10 @@ func _input(event: InputEvent) -> void:
 
 
 func _handle_keyboard_zoom(delta: float) -> void:
+	# Don't process zoom when not in PLAYING state
+	if GameController and GameController.current_state != GameController.GameState.PLAYING:
+		return
+	
 	if Input.is_action_pressed("zoom_in"):
 		adjust_zoom(zoom_speed * delta * 3.0)
 	if Input.is_action_pressed("zoom_out"):
@@ -43,6 +47,10 @@ func _handle_keyboard_zoom(delta: float) -> void:
 
 
 func _handle_mouse_wheel_zoom(event: InputEvent) -> void:
+	# Don't process zoom when not in PLAYING state
+	if GameController and GameController.current_state != GameController.GameState.PLAYING:
+		return
+	
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			adjust_zoom(zoom_speed)
@@ -51,6 +59,10 @@ func _handle_mouse_wheel_zoom(event: InputEvent) -> void:
 
 
 func _handle_pinch_zoom(event: InputEvent) -> void:
+	# Don't process zoom when not in PLAYING state
+	if GameController and GameController.current_state != GameController.GameState.PLAYING:
+		return
+	
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			touch_points[event.index] = event.position

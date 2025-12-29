@@ -197,6 +197,10 @@ func _update_patched_conics_state() -> void:
 
 
 func _handle_thrust_input(delta: float) -> void:
+	# Don't process gameplay input when not in PLAYING state
+	if GameController and GameController.current_state != GameController.GameState.PLAYING:
+		return
+	
 	# Orientation lock toggles
 	if Input.is_action_just_pressed("toggle_prograde"):
 		_toggle_prograde_lock()

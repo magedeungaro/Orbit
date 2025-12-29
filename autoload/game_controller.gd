@@ -711,6 +711,16 @@ func _load_menu_background() -> void:
 func start_game() -> void:
 	get_tree().paused = false
 	_load_current_level()
+	
+	# Release all input actions to prevent menu key presses from bleeding into gameplay
+	# This prevents Space (ui_accept) from triggering thrust when starting from level select
+	Input.action_release("thrust")
+	Input.action_release("rotate_left")
+	Input.action_release("rotate_right")
+	Input.action_release("toggle_prograde")
+	Input.action_release("toggle_retrograde")
+	Input.action_release("toggle_orientation")
+	
 	current_state = GameState.PLAYING
 	_hide_all_screens()
 	
@@ -726,6 +736,15 @@ func start_game() -> void:
 
 func resume_game() -> void:
 	get_tree().paused = false
+	
+	# Release all input actions to prevent menu key presses from bleeding into gameplay
+	Input.action_release("thrust")
+	Input.action_release("rotate_left")
+	Input.action_release("rotate_right")
+	Input.action_release("toggle_prograde")
+	Input.action_release("toggle_retrograde")
+	Input.action_release("toggle_orientation")
+	
 	current_state = GameState.PLAYING
 	_hide_all_screens()
 	
@@ -742,6 +761,15 @@ func resume_game() -> void:
 func restart_game() -> void:
 	get_tree().paused = false
 	_load_current_level()
+	
+	# Release all input actions to prevent any stuck inputs
+	Input.action_release("thrust")
+	Input.action_release("rotate_left")
+	Input.action_release("rotate_right")
+	Input.action_release("toggle_prograde")
+	Input.action_release("toggle_retrograde")
+	Input.action_release("toggle_orientation")
+	
 	current_state = GameState.PLAYING
 	_hide_all_screens()
 	
