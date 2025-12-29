@@ -9,6 +9,8 @@
 [ext_resource type="Script" path="res://scripts/ui/touch_reset_button.gd" id="7_reset_btn"]
 [ext_resource type="Texture2D" uid="uid://bgelqkalese1f" path="res://Assets/Sprites/Prograde Touch Control.PNG" id="8_prograde"]
 [ext_resource type="Script" path="res://scripts/ui/touch_toggle_button.gd" id="9_toggle_btn"]
+[ext_resource type="Texture2D" uid="uid://bdp0c4rfrskgo" path="res://Assets/Sprites/Menu Button Touch Control.PNG" id="10_menu"]
+[ext_resource type="Script" path="res://scripts/ui/touch_menu_button.gd" id="11_menu_btn"]
 
 [node name="TouchControls" type="CanvasLayer"]
 script = ExtResource("1_touch_mgr")
@@ -80,15 +82,30 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -88.0
+offset_left = -168.0
 offset_top = 20.0
-offset_right = -28.0
+offset_right = -108.0
 offset_bottom = 80.0
 grow_horizontal = 0
 texture_normal = ExtResource("6_reset")
 ignore_texture_size = true
 stretch_mode = 0
 script = ExtResource("7_reset_btn")
+
+[node name="MenuButton" type="TextureButton" parent="TouchControlContainer"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -88.0
+offset_top = 20.0
+offset_right = -28.0
+offset_bottom = 80.0
+grow_horizontal = 0
+texture_normal = ExtResource("10_menu")
+ignore_texture_size = true
+stretch_mode = 0
+script = ExtResource("11_menu_btn")
 
 [node name="ProgradeButton" type="TextureButton" parent="TouchControlContainer"]
 layout_mode = 1
