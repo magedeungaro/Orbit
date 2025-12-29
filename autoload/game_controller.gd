@@ -117,6 +117,15 @@ func _ready() -> void:
 	call_deferred("show_start_screen")
 
 
+func _input(event: InputEvent) -> void:
+	# Handle Enter/Space on level select screen to start selected level
+	if current_state == GameState.LEVEL_SELECT and level_select_screen and level_select_screen.visible:
+		if event.is_action_pressed("ui_accept") or (event is InputEventKey and event.pressed and event.keycode == KEY_SPACE):
+			if selected_level_id > 0:
+				_on_level_play_button_pressed()
+				get_viewport().set_input_as_handled()
+
+
 func _setup_ui_screens() -> void:
 	start_screen = StartScreenScene.instantiate()
 	ui_layer.add_child(start_screen)
@@ -242,7 +251,10 @@ func _setup_level_select_screen() -> void:
 	level_select_screen.visible = false
 	ui_layer.add_child(level_select_screen)
 	
-	level_select_back_button = level_select_screen.get_node("CenterContainer/VBoxContainer/BackButton")
+	var play_button = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/ButtonsContainer/PlayButton")
+	play_button.pressed.connect(_on_level_play_button_pressed)
+	
+	level_select_back_button = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/ButtonsContainer/BackButton")
 	level_select_back_button.pressed.connect(_on_level_select_back_pressed)
 	
 	_populate_level_buttons()
@@ -279,8 +291,10 @@ func _setup_play_again_button() -> void:
 	vbox.move_child(play_again_button, restart_level_index + 1)
 
 
+var selected_level_id: int = 1
+
 func _populate_level_buttons() -> void:
-	var container = level_select_screen.get_node("CenterContainer/VBoxContainer/LevelButtonsContainer")
+	var container = level_select_screen.get_node("MainContainer/LeftPanel/LevelCardsScroll/LevelCardsContainer")
 	
 	for child in container.get_children():
 		child.queue_free()
@@ -295,41 +309,179 @@ func _populate_level_buttons() -> void:
 		if not level:
 			continue
 		
-		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(350, 60)
-		btn.add_theme_font_override("font", AudiowideFont)
-		btn.add_theme_font_size_override("font_size", 20)
+		# Create level card
+		var card = PanelContainer.new()
+		card.custom_minimum_size = Vector2(0, 120)
 		
-		var is_unlocked = LevelManager.is_level_unlocked(level_id)
+		# Add margins to card
+		var card_style = StyleBoxFlat.new()
+		card_style.bg_color = Color(0.15, 0.15, 0.15, 0.9)
+		card_style.content_margin_left = 20
+		card_style.content_margin_right = 20
+		card_style.content_margin_top = 15
+		card_style.content_margin_bottom = 15
+		card_style.corner_radius_top_left = 8
+		card_style.corner_radius_top_right = 8
+		card_style.corner_radius_bottom_left = 8
+		card_style.corner_radius_bottom_right = 8
+		card.add_theme_stylebox_override("panel", card_style)
+		
+		var card_vbox = VBoxContainer.new()
+		card_vbox.add_theme_constant_override("separation", 8)
+		card.add_child(card_vbox)
+		
+		# Level title and best score
+		var title_hbox = HBoxContainer.new()
+		card_vbox.add_child(title_hbox)
+		
+		var title_label = Label.new()
+		title_label.add_theme_font_override("font", AudiowideFont)
+		title_label.add_theme_font_size_override("font_size", 24)
+		title_label.text = "Level %d: %s" % [level_id, level.level_name]
+		title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title_hbox.add_child(title_label)
+		
 		var best_score = LevelManager.get_best_score(level_id)
-		
-		var btn_text = "Level %d: %s" % [level_id, level.level_name]
 		if best_score >= 0:
-			btn_text += " (Best: %.0f%%)" % best_score
-		elif not is_unlocked:
-			btn_text = "Level %d: LOCKED" % level_id
+			var score_label = Label.new()
+			score_label.add_theme_font_size_override("font_size", 18)
+			score_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+			score_label.text = "Best: %.0f%%" % best_score
+			title_hbox.add_child(score_label)
 		
-		btn.text = btn_text
-		btn.disabled = not is_unlocked
-		btn.pressed.connect(_on_level_button_pressed.bind(level_id))
-		container.add_child(btn)
+		# Tags
+		var tags_hbox = HBoxContainer.new()
+		tags_hbox.add_theme_constant_override("separation", 8)
+		card_vbox.add_child(tags_hbox)
+		
+		var tag_colors = {
+			"Easy": Color(0.2, 0.8, 0.2),
+			"Medium": Color(1.0, 0.8, 0.0),
+			"Hard": Color(1.0, 0.4, 0.0),
+			"Very Hard": Color(0.9, 0.1, 0.1),
+			"Patched Conics": Color(0.4, 0.6, 1.0),
+			"N-Body": Color(0.8, 0.4, 1.0),
+			"Hybrid": Color(0.5, 0.9, 0.9),
+		}
+		
+		for tag in level.tags:
+			var tag_panel = PanelContainer.new()
+			var tag_style = StyleBoxFlat.new()
+			
+			# Get color based on tag, default to gray
+			var tag_color = tag_colors.get(tag, Color(0.4, 0.4, 0.4))
+			tag_style.bg_color = tag_color
+			
+			# Make it pill-shaped
+			tag_style.corner_radius_top_left = 10
+			tag_style.corner_radius_top_right = 10
+			tag_style.corner_radius_bottom_left = 10
+			tag_style.corner_radius_bottom_right = 10
+			tag_style.content_margin_left = 12
+			tag_style.content_margin_right = 12
+			tag_style.content_margin_top = 6
+			tag_style.content_margin_bottom = 6
+			tag_panel.add_theme_stylebox_override("panel", tag_style)
+			
+			var tag_label = Label.new()
+			tag_label.add_theme_font_size_override("font_size", 13)
+			tag_label.add_theme_color_override("font_color", Color(1, 1, 1))
+			tag_label.text = tag
+			tag_panel.add_child(tag_label)
+			tags_hbox.add_child(tag_panel)
+		
+		# Make card clickable
+		var btn = Button.new()
+		btn.custom_minimum_size = Vector2(0, 120)
+		btn.flat = true
+		btn.pressed.connect(_on_level_card_selected.bind(level_id, level))
+		btn.mouse_entered.connect(_update_level_detail_panel.bind(level))
+		btn.focus_entered.connect(_on_level_card_focused.bind(level_id, level))
+		
+		var card_wrapper = Control.new()
+		card_wrapper.custom_minimum_size = Vector2(0, 120)
+		card_wrapper.add_child(card)
+		card.set_anchors_preset(Control.PRESET_FULL_RECT)
+		card_wrapper.add_child(btn)
+		btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+		
+		container.add_child(card_wrapper)
 		level_buttons.append(btn)
 	
-	for i in range(level_buttons.size()):
-		var btn = level_buttons[i]
-		if i > 0:
-			btn.focus_neighbor_top = level_buttons[i - 1].get_path()
-		else:
-			btn.focus_neighbor_top = level_select_back_button.get_path()
-		
-		if i < level_buttons.size() - 1:
-			btn.focus_neighbor_bottom = level_buttons[i + 1].get_path()
-		else:
-			btn.focus_neighbor_bottom = level_select_back_button.get_path()
-	
 	if level_buttons.size() > 0:
-		level_select_back_button.focus_neighbor_top = level_buttons[level_buttons.size() - 1].get_path()
-		level_select_back_button.focus_neighbor_bottom = level_buttons[0].get_path()
+		level_buttons[0].grab_focus()
+		if level_ids.size() > 0:
+			var first_level = LevelManager.get_level(level_ids[0])
+			if first_level:
+				_update_level_detail_panel(first_level)
+				selected_level_id = level_ids[0]
+
+
+func _on_level_card_selected(level_id: int, level: LevelConfig) -> void:
+	selected_level_id = level_id
+	_update_level_detail_panel(level)
+
+
+func _on_level_card_focused(level_id: int, level: LevelConfig) -> void:
+	selected_level_id = level_id
+	_update_level_detail_panel(level)
+
+
+func _on_level_play_button_pressed() -> void:
+	if selected_level_id > 0:
+		_on_level_button_pressed(selected_level_id)
+
+
+func _update_level_detail_panel(level: LevelConfig) -> void:
+	if not level or not level_select_screen:
+		return
+	
+	var name_label = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/LevelNameLabel")
+	var desc_label = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/DescriptionScroll/DescriptionLabel")
+	var tags_container = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/TagsContainer")
+	
+	name_label.text = level.level_name
+	desc_label.text = level.description
+	
+	# Clear and populate tags
+	for child in tags_container.get_children():
+		child.queue_free()
+	
+	var tag_colors = {
+		"Easy": Color(0.2, 0.8, 0.2),
+		"Medium": Color(1.0, 0.8, 0.0),
+		"Hard": Color(1.0, 0.4, 0.0),
+		"Very Hard": Color(0.9, 0.1, 0.1),
+		"Patched Conics": Color(0.4, 0.6, 1.0),
+		"N-Body": Color(0.8, 0.4, 1.0),
+		"Hybrid": Color(0.5, 0.9, 0.9),
+	}
+	
+	for tag in level.tags:
+		var tag_panel = PanelContainer.new()
+		var style = StyleBoxFlat.new()
+		
+		# Get color based on tag, default to gray
+		var tag_color = tag_colors.get(tag, Color(0.4, 0.4, 0.4))
+		style.bg_color = tag_color
+		
+		# Make it pill-shaped with large corner radius
+		style.corner_radius_top_left = 12
+		style.corner_radius_top_right = 12
+		style.corner_radius_bottom_left = 12
+		style.corner_radius_bottom_right = 12
+		style.content_margin_left = 15
+		style.content_margin_right = 15
+		style.content_margin_top = 8
+		style.content_margin_bottom = 8
+		tag_panel.add_theme_stylebox_override("panel", style)
+		
+		var tag_label = Label.new()
+		tag_label.add_theme_font_size_override("font_size", 16)
+		tag_label.add_theme_color_override("font_color", Color(1, 1, 1))
+		tag_label.text = tag
+		tag_panel.add_child(tag_label)
+		tags_container.add_child(tag_panel)
 
 
 func _process(_delta: float) -> void:

@@ -8,6 +8,8 @@ class_name LevelConfig
 @export var level_id: int = 1
 @export var level_name: String = "New Level"
 @export_multiline var description: String = "Level description"
+@export var thumbnail: Texture2D = null  ## Thumbnail image for level select (placeholder for now)
+@export var tags: Array[String] = []  ## Tags: n-body, Patched Conic, Orbiting planets, Static Planets, Hard, Medium, Easy, Challenge
 
 @export_group("Ship Settings")
 ## Max fuel for this level (also set on Ship node for visual editing)

@@ -23,7 +23,8 @@ radius = 156.0
 script = ExtResource("1_config")
 level_id = 2
 level_name = "Gravity Assist"
-description = "Use planetary gravity to reach your destination"
+description = "Use the gravitational pull of intermediate planets to conserve fuel. Plan your trajectory carefully to reach the distant target."
+tags = Array[String](["Medium", "Patched Conic", "Static Planets"])
 max_fuel = 800.0
 
 [node name="World" type="Node2D" parent="."]

@@ -16,7 +16,7 @@ const LEVEL_SCENES: Dictionary = {
 }
 
 var current_level_id: int = 1
-var unlocked_levels: Array[int] = [1]
+var unlocked_levels: Array[int] = []  # Will be populated with all levels
 var level_best_scores: Dictionary = {}  # level_id -> best fuel remaining percentage
 
 var _level_scenes: Dictionary = {}  # level_id -> scene path
@@ -25,6 +25,7 @@ var _level_configs: Dictionary = {}  # level_id -> LevelConfig data (cached)
 
 func _ready() -> void:
 	_initialize_level_scenes()
+	_unlock_all_levels()  # Unlock all levels from the start
 	load_progress()
 
 
@@ -42,6 +43,14 @@ func _initialize_level_scenes() -> void:
 			_level_configs[config.level_id] = config
 
 
+## Unlock all levels (called on startup)
+func _unlock_all_levels() -> void:
+	unlocked_levels.clear()
+	for level_id in _level_scenes.keys():
+		unlocked_levels.append(level_id)
+	unlocked_levels.sort()
+
+
 ## Load level config from a scene
 func _load_level_config(scene_path: String) -> LevelConfig:
 	var scene = load(scene_path)
@@ -54,6 +63,8 @@ func _load_level_config(scene_path: String) -> LevelConfig:
 		config.level_id = instance.level_id
 		config.level_name = instance.level_name
 		config.description = instance.description
+		config.thumbnail = instance.thumbnail
+		config.tags = instance.tags.duplicate()
 		config.ship_start_velocity = instance.ship_start_velocity
 		config.max_fuel = instance.max_fuel
 		config.stable_orbit_time = instance.stable_orbit_time
@@ -120,10 +131,10 @@ func set_current_level(level_id: int) -> void:
 
 ## Check if a level is unlocked
 func is_level_unlocked(level_id: int) -> bool:
-	return level_id in unlocked_levels
+	return true  # All levels are always unlocked
 
 
-## Unlock a level
+## Unlock a level (kept for compatibility, but does nothing now)
 func unlock_level(level_id: int) -> void:
 	if level_id not in unlocked_levels:
 		unlocked_levels.append(level_id)
@@ -133,18 +144,13 @@ func unlock_level(level_id: int) -> void:
 			Events.level_unlocked.emit(level_id)
 
 
-## Complete current level and unlock next
+## Complete current level
 func complete_level(fuel_remaining_percent: float) -> void:
 	var level_id := current_level_id
 	
 	# Update best score
 	if level_id not in level_best_scores or fuel_remaining_percent > level_best_scores[level_id]:
 		level_best_scores[level_id] = fuel_remaining_percent
-	
-	# Unlock next level
-	var next_level_id := level_id + 1
-	if get_level(next_level_id) != null:
-		unlock_level(next_level_id)
 	
 	save_progress()
 	
@@ -205,10 +211,7 @@ func load_progress() -> void:
 		file.close()
 		
 		if save_data is Dictionary:
-			if "unlocked_levels" in save_data:
-				unlocked_levels.clear()
-				for level_id in save_data["unlocked_levels"]:
-					unlocked_levels.append(level_id)
+			# Load best scores but ignore unlocked_levels (all levels are unlocked)
 			if "best_scores" in save_data:
 				level_best_scores = save_data["best_scores"]
 			if "current_level" in save_data:
@@ -220,7 +223,7 @@ func load_progress() -> void:
 
 ## Reset all progress (for testing/debugging)
 func reset_progress() -> void:
-	unlocked_levels = [1]
+	_unlock_all_levels()  # Ensure all levels are unlocked
 	level_best_scores = {}
 	current_level_id = 1
 	save_progress()

@@ -20,41 +20,142 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0.85)
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="TitleContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 30.0
+offset_bottom = 120.0
+grow_horizontal = 2
+theme_override_constants/margin_bottom = 20
+
+[node name="Title" type="Label" parent="TitleContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 54
+text = "SELECT LEVEL"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MainContainer" type="HBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 50.0
+offset_top = 130.0
+offset_right = -50.0
+offset_bottom = -50.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/separation = 30
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
+[node name="LeftPanel" type="VBoxContainer" parent="MainContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 20
-alignment = 1
 
-[node name="Title" type="Label" parent="CenterContainer/VBoxContainer"]
+[node name="LevelCardsScroll" type="ScrollContainer" parent="MainContainer/LeftPanel"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 48
-text = "SELECT LEVEL"
-horizontal_alignment = 1
+size_flags_vertical = 3
 
-[node name="Spacer1" type="Control" parent="CenterContainer/VBoxContainer"]
-custom_minimum_size = Vector2(0, 20)
+[node name="LevelCardsContainer" type="VBoxContainer" parent="MainContainer/LeftPanel/LevelCardsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 15
+
+[node name="DetailPanel" type="PanelContainer" parent="MainContainer"]
+custom_minimum_size = Vector2(600, 0)
 layout_mode = 2
 
-[node name="LevelButtonsContainer" type="VBoxContainer" parent="CenterContainer/VBoxContainer"]
+[node name="MarginContainer" type="MarginContainer" parent="MainContainer/DetailPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 30
+theme_override_constants/margin_bottom = 30
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MainContainer/DetailPanel/MarginContainer"]
 layout_mode = 2
 theme_override_constants/separation = 15
+
+[node name="LevelNameLabel" type="Label" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+theme_override_constants/line_spacing = 4
+text = "First Steps"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Separator1" type="HSeparator" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ThumbnailContainer" type="CenterContainer" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+
+[node name="ThumbnailRect" type="ColorRect" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer/ThumbnailContainer"]
+custom_minimum_size = Vector2(400, 200)
+layout_mode = 2
+color = Color(0.2, 0.2, 0.2, 1)
+
+[node name="ThumbnailLabel" type="Label" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer/ThumbnailContainer/ThumbnailRect"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -14.0
+offset_right = 100.0
+offset_bottom = 14.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 20
+text = "Thumbnail"
+horizontal_alignment = 1
+
+[node name="TagsContainer" type="HBoxContainer" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
 alignment = 1
 
-[node name="Spacer2" type="Control" parent="CenterContainer/VBoxContainer"]
-custom_minimum_size = Vector2(0, 20)
+[node name="Separator2" type="HSeparator" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="BackButton" type="Button" parent="CenterContainer/VBoxContainer"]
-custom_minimum_size = Vector2(200, 50)
+[node name="DescriptionScroll" type="ScrollContainer" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DescriptionLabel" type="Label" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer/DescriptionScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/line_spacing = 6
+theme_override_font_sizes/font_size = 20
+text = "Select a level from the list to see its description."
+autowrap_mode = 3
+
+[node name="Spacer" type="Control" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ButtonsContainer" type="HBoxContainer" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="BackButton" type="Button" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer/ButtonsContainer"]
+custom_minimum_size = Vector2(200, 60)
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 20
 text = "BACK"
+
+[node name="PlayButton" type="Button" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer/ButtonsContainer"]
+custom_minimum_size = Vector2(200, 60)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "PLAY"

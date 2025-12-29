@@ -23,7 +23,8 @@ radius = 156.0
 script = ExtResource("1_config")
 level_id = 1
 level_name = "First Steps"
-description = "Learn the basics of orbital mechanics"
+description = "Master the fundamentals of spaceflight. Learn to control your thrust angle and achieve a stable orbit around the target planet."
+tags = Array[String](["Easy", "Patched Conic", "Static Planets"])
 
 [node name="World" type="Node2D" parent="."]
 
