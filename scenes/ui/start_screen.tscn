@@ -88,6 +88,34 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "OPTIONS"
 
+[node name="DiscordButton" type="Button" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(250, 55)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = ""
+vertical_icon_alignment = 1
+
+[node name="RichTextLabel" type="RichTextLabel" parent="CenterContainer/VBoxContainer/DiscordButton"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -125.0
+offset_top = -15.0
+offset_right = 125.0
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_font_sizes/normal_font_size = 24
+bbcode_enabled = true
+text = "[center][img width=32]res://Assets/Sprites/discord_icon.svg[/img]   DISCORD[/center]"
+fit_content = true
+scroll_active = false
+shortcut_keys_enabled = false
+
 [node name="Spacer3" type="Control" parent="CenterContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2

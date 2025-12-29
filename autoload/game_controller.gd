@@ -43,6 +43,7 @@ var pause_screen: Control
 var start_button: Button
 var options_button: Button
 var level_select_button: Button
+var discord_button: Button
 var quit_button: Button
 var restart_button: Button
 var restart_level_button: Button
@@ -132,12 +133,14 @@ func _setup_ui_screens() -> void:
 	start_button = start_screen.get_node("CenterContainer/VBoxContainer/StartButton")
 	level_select_button = start_screen.get_node("CenterContainer/VBoxContainer/LevelSelectButton")
 	options_button = start_screen.get_node("CenterContainer/VBoxContainer/OptionsButton")
+	discord_button = start_screen.get_node("CenterContainer/VBoxContainer/DiscordButton")
 	quit_button = start_screen.get_node("CenterContainer/VBoxContainer/QuitButton")
 	start_button.pressed.connect(_on_start_pressed)
 	level_select_button.pressed.connect(_on_level_select_pressed)
 	options_button.pressed.connect(_on_options_pressed)
+	discord_button.pressed.connect(_on_discord_pressed)
 	quit_button.pressed.connect(_on_quit_to_desktop_pressed)
-	_setup_focus_neighbors_four(start_button, level_select_button, options_button, quit_button)
+	_setup_focus_neighbors_five(start_button, level_select_button, options_button, discord_button, quit_button)
 	
 	game_over_screen = GameOverScreenScene.instantiate()
 	game_over_screen.visible = false
@@ -934,6 +937,10 @@ func _on_play_again_pressed() -> void:
 
 func _on_options_pressed() -> void:
 	show_options_screen()
+
+
+func _on_discord_pressed() -> void:
+	OS.shell_open("https://discord.gg/S3Cg4ZEUyr")
 
 
 func _on_level_select_pressed() -> void:
