@@ -7,6 +7,8 @@ var reference_body_label: Label
 var info_label: Label
 var fuel_label: Label
 var fuel_bar: ProgressBar
+var orbit_label: Label
+var orbit_bar: ProgressBar
 var goal_indicator: Control
 var target_body: Node2D = null
 var camera: Camera2D = null
@@ -111,6 +113,48 @@ func _create_ui() -> void:
 	info_label.custom_minimum_size = Vector2(280, 0)
 	vbox.add_child(info_label)
 	
+	# Add spacer before orbit progress
+	var spacer2 = Control.new()
+	spacer2.custom_minimum_size = Vector2(0, 15)
+	vbox.add_child(spacer2)
+	
+	# Stable orbit progress label
+	orbit_label = Label.new()
+	orbit_label.name = "OrbitLabel"
+	orbit_label.add_theme_font_override("font", audiowide_font)
+	orbit_label.add_theme_font_size_override("font_size", 24)
+	orbit_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+	orbit_label.custom_minimum_size = Vector2(280, 0)
+	orbit_label.visible = false  # Only show when in stable orbit
+	vbox.add_child(orbit_label)
+	
+	# Stable orbit progress bar
+	orbit_bar = ProgressBar.new()
+	orbit_bar.name = "OrbitBar"
+	orbit_bar.custom_minimum_size = Vector2(280, 28)
+	orbit_bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	orbit_bar.max_value = 100
+	orbit_bar.value = 0
+	orbit_bar.show_percentage = false
+	orbit_bar.visible = false  # Only show when in stable orbit
+	
+	var orbit_bar_style = StyleBoxFlat.new()
+	orbit_bar_style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+	orbit_bar_style.corner_radius_top_left = 3
+	orbit_bar_style.corner_radius_top_right = 3
+	orbit_bar_style.corner_radius_bottom_left = 3
+	orbit_bar_style.corner_radius_bottom_right = 3
+	orbit_bar.add_theme_stylebox_override("background", orbit_bar_style)
+	
+	var orbit_fill_style = StyleBoxFlat.new()
+	orbit_fill_style.bg_color = Color(0.3, 1.0, 0.5, 1.0)
+	orbit_fill_style.corner_radius_top_left = 3
+	orbit_fill_style.corner_radius_top_right = 3
+	orbit_fill_style.corner_radius_bottom_left = 3
+	orbit_fill_style.corner_radius_bottom_right = 3
+	orbit_bar.add_theme_stylebox_override("fill", orbit_fill_style)
+	vbox.add_child(orbit_bar)
+	
 	goal_indicator = GoalIndicator.new()
 	goal_indicator.name = "GoalIndicator"
 	goal_indicator.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -158,6 +202,30 @@ func _process(_delta: float) -> void:
 	info_label.text = "Thrust Angle: %.0f°\nOrientation: %s" % [
 		thrust_angle, orientation_mode
 	]
+	
+	# Update stable orbit progress
+	if orbiting_body.has_method("get_orbit_progress"):
+		var orbit_progress = orbiting_body.get_orbit_progress()
+		var time_remaining = max(0, orbiting_body.stable_orbit_time_required - orbiting_body.time_in_stable_orbit)
+		
+		if orbit_progress > 0.0:
+			orbit_label.visible = true
+			orbit_bar.visible = true
+			orbit_label.text = "STABLE ORBIT: %.1fs" % time_remaining
+			orbit_bar.value = orbit_progress * 100.0
+			
+			# Change color based on progress
+			var orbit_fill = orbit_bar.get_theme_stylebox("fill") as StyleBoxFlat
+			if orbit_fill:
+				if orbit_progress >= 1.0:
+					orbit_fill.bg_color = Color(0.3, 1.0, 0.5, 1.0)  # Green when complete
+				elif orbit_progress >= 0.5:
+					orbit_fill.bg_color = Color(0.5, 0.9, 0.3, 1.0)  # Yellow-green
+				else:
+					orbit_fill.bg_color = Color(0.9, 0.9, 0.3, 1.0)  # Yellow
+		else:
+			orbit_label.visible = false
+			orbit_bar.visible = false
 	
 	if target_body == null and orbiting_body.target_body != null:
 		target_body = orbiting_body.target_body
