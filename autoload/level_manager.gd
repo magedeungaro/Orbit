@@ -5,6 +5,16 @@ extends Node
 const SAVE_PATH := "user://level_progress.save"
 const LEVELS_PATH := "res://scenes/levels/"
 
+# Preload all level scenes for web export compatibility
+const LEVEL_SCENES: Dictionary = {
+	1: "res://scenes/levels/level_1.tscn",
+	2: "res://scenes/levels/level_2.tscn",
+	3: "res://scenes/levels/level_3.tscn",
+	4: "res://scenes/levels/level_4.tscn",
+	5: "res://scenes/levels/level_5.tscn",
+	6: "res://scenes/levels/level_6.tscn",
+}
+
 var current_level_id: int = 1
 var unlocked_levels: Array[int] = [1]
 var level_best_scores: Dictionary = {}  # level_id -> best fuel remaining percentage
@@ -14,28 +24,22 @@ var _level_configs: Dictionary = {}  # level_id -> LevelConfig data (cached)
 
 
 func _ready() -> void:
-	_scan_level_scenes()
+	_initialize_level_scenes()
 	load_progress()
 
 
-## Scan the levels folder for level scenes
-func _scan_level_scenes() -> void:
+## Initialize level scenes (web-compatible)
+func _initialize_level_scenes() -> void:
 	_level_scenes.clear()
 	_level_configs.clear()
 	
-	var dir = DirAccess.open(LEVELS_PATH)
-	if dir:
-		dir.list_dir_begin()
-		var file_name = dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tscn"):
-				var scene_path = LEVELS_PATH + file_name
-				var config = _load_level_config(scene_path)
-				if config:
-					_level_scenes[config.level_id] = scene_path
-					_level_configs[config.level_id] = config
-			file_name = dir.get_next()
-		dir.list_dir_end()
+	# Use predefined level paths for web export compatibility
+	for level_id in LEVEL_SCENES:
+		var scene_path = LEVEL_SCENES[level_id]
+		var config = _load_level_config(scene_path)
+		if config:
+			_level_scenes[config.level_id] = scene_path
+			_level_configs[config.level_id] = config
 
 
 ## Load level config from a scene
