@@ -629,7 +629,75 @@ func _update_level_detail_panel(level: LevelConfig) -> void:
 	# Fetch and display leaderboard for this level
 	if LootLockerManager:
 		_fetch_level_leaderboard(level.level_id)
+		# DEBUG: Use mock leaderboard (uncomment below and comment above):
+		# _load_mock_leaderboard(level.level_id)
 
+
+## Generate mock leaderboard data for debugging (20 entries + player rank)
+func _generate_mock_leaderboard(level_id: int) -> Dictionary:
+	var entries = []
+	var player_names = [
+		"SpeedRunner", "OrbitMaster", "RocketAce", "StarPilot", "CosmicKing",
+		"AstroNinja", "GravityGuru", "FuelSaver", "TimeLord", "SpaceNav",
+		"OrbitalPro", "SkyWalker", "NovaHunter", "CelestialAce", "QuickOrbit",
+		"ThunderBolt", "SolarFlare", "MoonDancer", "StarChaser", "NebulaDrift"
+	]
+	
+	# Generate 20 top entries with decreasing scores
+	var base_score = 10000
+	var base_time = 60.0  # 1 minute
+	var base_fuel = 95.0
+	
+	for i in range(20):
+		var rank = i + 1
+		var score = base_score - (i * 200) - randi() % 100
+		var time = base_time + (i * 3.5) + randf() * 2.0
+		var fuel = base_fuel - (i * 2.0) - randf() * 3.0
+		
+		entries.append({
+			"rank": rank,
+			"score": score,
+			"member_id": player_names[i],
+			"metadata": {
+				"time": time,
+				"fuel": max(0.0, fuel)
+			}
+		})
+	
+	# Generate player's rank data (outside top 20)
+	var player_rank_data = {
+		"success": true,
+		"rank": 42,  # Player is ranked 42nd
+		"score": base_score - 5000,
+		"member_id": PlayerProfile.get_player_name(),
+		"metadata": {
+			"time": base_time + 85.0,
+			"fuel": 45.0
+		}
+	}
+	
+	return {
+		"entries": entries,
+		"player_rank": player_rank_data
+	}
+
+## Load mock leaderboard for debugging
+func _load_mock_leaderboard(level_id: int) -> void:
+	print("[GameController] Loading mock leaderboard for level ", level_id)
+	
+	# Set as selected level
+	_selected_level_id = level_id
+	
+	var mock_data = _generate_mock_leaderboard(level_id)
+	
+	# Store in cache
+	_leaderboard_cache[level_id] = mock_data
+	_cache_timestamp[level_id] = Time.get_unix_time_from_system()
+	
+	print("[GameController] Mock data cached with ", mock_data["entries"].size(), " entries")
+	
+	# Display immediately
+	_display_cached_leaderboard(level_id)
 
 ## Prefetch all leaderboards for unlocked levels
 func _prefetch_all_leaderboards() -> void:
@@ -812,9 +880,14 @@ func _fetch_level_leaderboard(level_id: int) -> void:
 
 ## Display cached leaderboard data
 func _display_cached_leaderboard(level_id: int) -> void:
+	print("[GameController] _display_cached_leaderboard called for level ", level_id)
+	
 	var leaderboard_container = level_select_screen.get_node_or_null("MainContainer/LeaderboardPanel/MarginContainer/VBoxContainer/LeaderboardScroll/LeaderboardEntries")
 	if not leaderboard_container:
+		print("[GameController] ERROR: Leaderboard container not found!")
 		return
+	
+	print("[GameController] Leaderboard container found, clearing existing entries")
 	
 	# Clear existing entries
 	for child in leaderboard_container.get_children():
@@ -824,7 +897,10 @@ func _display_cached_leaderboard(level_id: int) -> void:
 	var entries: Array = cache_data.get("entries", [])
 	var player_rank_data: Dictionary = cache_data.get("player_rank", {})
 	
+	print("[GameController] Cache data has ", entries.size(), " entries")
+	
 	if entries.is_empty():
+		print("[GameController] No entries, showing placeholder")
 		var no_data_label = Label.new()
 		no_data_label.text = "No leaderboard data yet\nBe the first to complete this level!"
 		no_data_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
@@ -832,18 +908,12 @@ func _display_cached_leaderboard(level_id: int) -> void:
 		leaderboard_container.add_child(no_data_label)
 		return
 	
-	# Display top 20 entries
-	for entry in entries:
-		_create_leaderboard_entry(leaderboard_container, entry)
+	print("[GameController] Creating ", entries.size(), " leaderboard entries")
 	
-	# Add player's rank if available and not in top 20
+	# Add player's rank at the top if available and not in top 20
 	if player_rank_data.get("success", false):
 		var player_rank = player_rank_data.get("rank", 0)
 		if player_rank > 20:
-			# Add separator
-			var separator = HSeparator.new()
-			leaderboard_container.add_child(separator)
-			
 			# Add "Your Rank" label
 			var your_rank_label = Label.new()
 			your_rank_label.text = "YOUR RANK"
@@ -860,6 +930,14 @@ func _display_cached_leaderboard(level_id: int) -> void:
 				"metadata": player_rank_data.get("metadata", {})
 			}
 			_create_leaderboard_entry(leaderboard_container, player_entry, true)
+			
+			# Add separator after player's entry
+			var separator = HSeparator.new()
+			leaderboard_container.add_child(separator)
+	
+	# Display top 20 entries
+	for entry in entries:
+		_create_leaderboard_entry(leaderboard_container, entry)
 
 
 ## Create a leaderboard entry UI element
