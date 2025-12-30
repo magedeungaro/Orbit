@@ -904,7 +904,11 @@ func _display_cached_leaderboard(level_id: int) -> void:
 		var no_data_label = Label.new()
 		no_data_label.text = "No leaderboard data yet\nBe the first to complete this level!"
 		no_data_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		no_data_label.add_theme_font_size_override("font_size", 18)
 		no_data_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		no_data_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		no_data_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		no_data_label.custom_minimum_size = Vector2(340, 100)
 		leaderboard_container.add_child(no_data_label)
 		return
 	
