@@ -19,7 +19,6 @@ var leaderboard_ids := {
 
 # Signals
 signal authentication_completed(success: bool)
-signal score_submitted(success: bool, level_id: int)
 signal leaderboard_fetched(success: bool, level_id: int, entries: Array)
 
 func _ready() -> void:
@@ -70,12 +69,10 @@ func submit_score(level_id: int, score: int, metadata: Dictionary) -> void:
 		push_warning("LootLocker: Not authenticated, attempting to authenticate first")
 		await authentication_completed
 		if not is_authenticated:
-			score_submitted.emit(false, level_id)
 			return
 	
 	if not leaderboard_ids.has(level_id) or leaderboard_ids[level_id] == 0:
 		push_error("LootLocker: No leaderboard ID configured for level " + str(level_id))
-		score_submitted.emit(false, level_id)
 		return
 	
 	var leaderboard_id: int = leaderboard_ids[level_id]
@@ -91,11 +88,9 @@ func submit_score(level_id: int, score: int, metadata: Dictionary) -> void:
 	
 	if response.success:
 		print("LootLocker: Score submitted successfully for level " + str(level_id))
-		score_submitted.emit(true, level_id)
 	else:
 		var error_msg = response.error_data.message if response.error_data else "Unknown error"
 		push_error("LootLocker: Score submission failed: " + error_msg)
-		score_submitted.emit(false, level_id)
 
 
 ## Fetch leaderboard entries for a level using the SDK
