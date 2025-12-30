@@ -146,3 +146,50 @@ func fetch_leaderboard(level_id: int, count: int = 10) -> void:
 	
 	print("LootLocker: Fetched " + str(entries.size()) + " leaderboard entries for level " + str(level_id))
 	leaderboard_fetched.emit(true, level_id, entries)
+
+
+## Fetch player's rank for a specific level
+## Returns a Dictionary with success, rank, score, member_id, and metadata
+func fetch_player_rank(level_id: int) -> Dictionary:
+	if not is_authenticated:
+		push_warning("LootLocker: Not authenticated")
+		return {"success": false}
+	
+	if player_id == 0:
+		push_warning("LootLocker: No player ID available")
+		return {"success": false}
+	
+	if not leaderboard_ids.has(level_id) or leaderboard_ids[level_id] == 0:
+		push_error("LootLocker: No leaderboard ID configured for level " + str(level_id))
+		return {"success": false}
+	
+	var leaderboard_id: int = leaderboard_ids[level_id]
+	var member_id := str(player_id)
+	
+	var response = await LL_Leaderboards.GetMemberRank.new(
+		str(leaderboard_id),
+		member_id
+	).send()
+	
+	if not response.success:
+		var error_msg = response.error_data.message if response.error_data else "Unknown error"
+		push_warning("LootLocker: Failed to get player rank: " + error_msg)
+		return {"success": false}
+	
+	# Parse metadata if present
+	var metadata_dict = {}
+	if response.metadata and response.metadata != "":
+		var metadata_json := JSON.new()
+		if metadata_json.parse(response.metadata) == OK:
+			metadata_dict = metadata_json.data
+	
+	var result = {
+		"success": true,
+		"rank": response.rank,
+		"score": response.score,
+		"member_id": response.player.name if response.player and response.player.name else "You",
+		"metadata": metadata_dict
+	}
+	
+	print("LootLocker: Player rank for level ", level_id, " is ", response.rank)
+	return result

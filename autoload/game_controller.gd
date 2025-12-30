@@ -288,8 +288,6 @@ func _setup_level_select_screen() -> void:
 	level_select_back_button = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/ButtonsContainer/BackButton")
 	level_select_back_button.pressed.connect(_on_level_select_back_pressed)
 	
-	# Add leaderboard container to detail panel
-	_setup_leaderboard_container()
 	
 	_populate_level_buttons()
 
@@ -651,20 +649,34 @@ func _prefetch_all_leaderboards() -> void:
 
 ## Fetch leaderboard and store in cache (non-blocking)
 func _fetch_leaderboard_to_cache(level_id: int) -> void:
-	LootLockerManager.fetch_leaderboard(level_id, 10)
+	# Fetch top 20 entries
+	LootLockerManager.fetch_leaderboard(level_id, 20)
 	var result = await LootLockerManager.leaderboard_fetched
 	var success: bool = result[0]
 	var returned_level_id: int = result[1]
 	var entries: Array = result[2]
 	
-	if success and returned_level_id == level_id:
-		_leaderboard_cache[level_id] = entries
-		_cache_timestamp[level_id] = Time.get_unix_time_from_system()
-		print("[GameController] Cached leaderboard for level ", level_id, " with ", entries.size(), " entries")
-		
-		# If this is the currently selected level, display it
-		if _selected_level_id == level_id:
-			_display_cached_leaderboard(level_id)
+	if not success or returned_level_id != level_id:
+		return
+	
+	# Fetch player's rank
+	var player_rank_data: Dictionary = {}
+	if LootLockerManager.player_id > 0:
+		var rank_result = await LootLockerManager.fetch_player_rank(level_id)
+		if rank_result["success"]:
+			player_rank_data = rank_result
+	
+	# Store in cache
+	_leaderboard_cache[level_id] = {
+		"entries": entries,
+		"player_rank": player_rank_data
+	}
+	_cache_timestamp[level_id] = Time.get_unix_time_from_system()
+	print("[GameController] Cached leaderboard for level ", level_id, " with ", entries.size(), " entries")
+	
+	# If this is the currently selected level, display it
+	if _selected_level_id == level_id:
+		_display_cached_leaderboard(level_id)
 
 ## Check if cached leaderboard is still valid
 func _is_cache_valid(level_id: int) -> bool:
@@ -679,8 +691,8 @@ func _fetch_level_leaderboard(level_id: int) -> void:
 	# Track which level is selected for display
 	_selected_level_id = level_id
 	
-	# Get leaderboard container in detail panel
-	var leaderboard_container = level_select_screen.get_node_or_null("MainContainer/DetailPanel/MarginContainer/VBoxContainer/LeaderboardContainer")
+	# Get leaderboard container in side panel
+	var leaderboard_container = level_select_screen.get_node_or_null("MainContainer/LeaderboardPanel/MarginContainer/VBoxContainer/LeaderboardScroll/LeaderboardEntries")
 	if not leaderboard_container:
 		print("[GameController] Leaderboard container not found!")
 		return
@@ -701,8 +713,7 @@ func _fetch_level_leaderboard(level_id: int) -> void:
 	
 	# Clear existing entries
 	for child in leaderboard_container.get_children():
-		if child.name != "LeaderboardTitle":
-			child.queue_free()
+		child.queue_free()
 	
 	# Show loading indicator
 	var loading_label = Label.new()
@@ -712,15 +723,21 @@ func _fetch_level_leaderboard(level_id: int) -> void:
 	leaderboard_container.add_child(loading_label)
 	
 	print("[GameController] Requesting leaderboard from LootLockerManager")
-	# Fetch leaderboard
-	LootLockerManager.fetch_leaderboard(level_id, 10)
+	# Fetch top 20 leaderboard entries
+	LootLockerManager.fetch_leaderboard(level_id, 20)
 	
 	print("[GameController] Waiting for leaderboard response...")
-	# Wait for response
 	var result = await LootLockerManager.leaderboard_fetched
 	var success: bool = result[0]
 	var returned_level_id: int = result[1]
 	var entries: Array = result[2]
+	
+	# Fetch player's rank
+	var player_rank_data: Dictionary = {}
+	if LootLockerManager.player_id > 0:
+		var rank_result = await LootLockerManager.fetch_player_rank(level_id)
+		if rank_result["success"]:
+			player_rank_data = rank_result
 	
 	print("[GameController] Leaderboard response received - Success: ", success, " Level: ", returned_level_id, " Entries: ", entries.size())
 	
@@ -729,7 +746,10 @@ func _fetch_level_leaderboard(level_id: int) -> void:
 	
 	# Store in cache
 	if success:
-		_leaderboard_cache[returned_level_id] = entries
+		_leaderboard_cache[returned_level_id] = {
+			"entries": entries,
+			"player_rank": player_rank_data
+		}
 		_cache_timestamp[returned_level_id] = Time.get_unix_time_from_system()
 	
 	# Only display if this is still the selected level
@@ -756,22 +776,53 @@ func _fetch_level_leaderboard(level_id: int) -> void:
 		return
 	
 	print("[GameController] Displaying ", entries.size(), " leaderboard entries")
-	# Display entries
+	
+	# Clear existing entries
+	for child in leaderboard_container.get_children():
+		child.queue_free()
+	
+	# Display top 20 entries
 	for entry in entries:
 		_create_leaderboard_entry(leaderboard_container, entry)
+	
+	# Add player's rank at position 21 if available and not in top 20
+	if player_rank_data.get("success", false):
+		var player_rank = player_rank_data.get("rank", 0)
+		if player_rank > 20:  # Only show if player is not already in top 20
+			# Add separator
+			var separator = HSeparator.new()
+			leaderboard_container.add_child(separator)
+			
+			# Add "Your Rank" label
+			var your_rank_label = Label.new()
+			your_rank_label.text = "YOUR RANK"
+			your_rank_label.add_theme_font_size_override("font_size", 14)
+			your_rank_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+			your_rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			leaderboard_container.add_child(your_rank_label)
+			
+			# Add player's entry
+			var player_entry = {
+				"rank": player_rank,
+				"score": player_rank_data.get("score", 0),
+				"member_id": player_rank_data.get("member_id", "You"),
+				"metadata": player_rank_data.get("metadata", {})
+			}
+			_create_leaderboard_entry(leaderboard_container, player_entry, true)
 
 ## Display cached leaderboard data
 func _display_cached_leaderboard(level_id: int) -> void:
-	var leaderboard_container = level_select_screen.get_node_or_null("MainContainer/DetailPanel/MarginContainer/VBoxContainer/LeaderboardContainer")
+	var leaderboard_container = level_select_screen.get_node_or_null("MainContainer/LeaderboardPanel/MarginContainer/VBoxContainer/LeaderboardScroll/LeaderboardEntries")
 	if not leaderboard_container:
 		return
 	
 	# Clear existing entries
 	for child in leaderboard_container.get_children():
-		if child.name != "LeaderboardTitle":
-			child.queue_free()
+		child.queue_free()
 	
-	var entries: Array = _leaderboard_cache.get(level_id, [])
+	var cache_data: Dictionary = _leaderboard_cache.get(level_id, {})
+	var entries: Array = cache_data.get("entries", [])
+	var player_rank_data: Dictionary = cache_data.get("player_rank", {})
 	
 	if entries.is_empty():
 		var no_data_label = Label.new()
@@ -781,65 +832,85 @@ func _display_cached_leaderboard(level_id: int) -> void:
 		leaderboard_container.add_child(no_data_label)
 		return
 	
-	# Display entries
+	# Display top 20 entries
 	for entry in entries:
 		_create_leaderboard_entry(leaderboard_container, entry)
+	
+	# Add player's rank if available and not in top 20
+	if player_rank_data.get("success", false):
+		var player_rank = player_rank_data.get("rank", 0)
+		if player_rank > 20:
+			# Add separator
+			var separator = HSeparator.new()
+			leaderboard_container.add_child(separator)
+			
+			# Add "Your Rank" label
+			var your_rank_label = Label.new()
+			your_rank_label.text = "YOUR RANK"
+			your_rank_label.add_theme_font_size_override("font_size", 14)
+			your_rank_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+			your_rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			leaderboard_container.add_child(your_rank_label)
+			
+			# Add player's entry
+			var player_entry = {
+				"rank": player_rank,
+				"score": player_rank_data.get("score", 0),
+				"member_id": player_rank_data.get("member_id", "You"),
+				"metadata": player_rank_data.get("metadata", {})
+			}
+			_create_leaderboard_entry(leaderboard_container, player_entry, true)
 
 
 ## Create a leaderboard entry UI element
-func _create_leaderboard_entry(container: Control, entry: Dictionary) -> void:
+func _create_leaderboard_entry(container: Control, entry: Dictionary, is_player: bool = false) -> void:
 	var entry_panel = PanelContainer.new()
-	entry_panel.custom_minimum_size = Vector2(0, 40)
+	entry_panel.custom_minimum_size = Vector2(0, 35)
 	
 	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.15, 0.15, 0.15, 0.7)
+	if is_player:
+		# Highlight player's entry
+		panel_style.bg_color = Color(0.2, 0.4, 0.2, 0.8)
+	else:
+		panel_style.bg_color = Color(0.15, 0.15, 0.15, 0.7)
 	panel_style.corner_radius_top_left = 5
 	panel_style.corner_radius_top_right = 5
 	panel_style.corner_radius_bottom_left = 5
 	panel_style.corner_radius_bottom_right = 5
+	panel_style.content_margin_left = 8
+	panel_style.content_margin_right = 8
+	panel_style.content_margin_top = 5
+	panel_style.content_margin_bottom = 5
 	entry_panel.add_theme_stylebox_override("panel", panel_style)
 	
 	var hbox = HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 10)
+	hbox.add_theme_constant_override("separation", 8)
 	entry_panel.add_child(hbox)
 	
 	# Rank
 	var rank_label = Label.new()
 	rank_label.text = "#%d" % entry["rank"]
-	rank_label.add_theme_font_size_override("font_size", 18)
+	rank_label.add_theme_font_size_override("font_size", 14)
 	rank_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
-	rank_label.custom_minimum_size = Vector2(50, 0)
+	rank_label.custom_minimum_size = Vector2(40, 0)
 	hbox.add_child(rank_label)
 	
 	# Player name
 	var name_label = Label.new()
 	name_label.text = entry["member_id"]
-	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_font_size_override("font_size", 13)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	hbox.add_child(name_label)
 	
-	# Score and stats
-	var stats_vbox = VBoxContainer.new()
-	stats_vbox.add_theme_constant_override("separation", 2)
-	hbox.add_child(stats_vbox)
-	
+	# Score
 	var score_label = Label.new()
-	score_label.text = "%d pts" % entry["score"]
-	score_label.add_theme_font_size_override("font_size", 16)
+	score_label.text = "%d" % entry["score"]
+	score_label.add_theme_font_size_override("font_size", 14)
 	score_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	stats_vbox.add_child(score_label)
-	
-	# Time and fuel from metadata
-	if entry["metadata"] and entry["metadata"].has("time") and entry["metadata"].has("fuel"):
-		var detail_label = Label.new()
-		var time_str = ScoringSystem.format_time(entry["metadata"]["time"])
-		detail_label.text = "%s | %.0f%% fuel" % [time_str, entry["metadata"]["fuel"]]
-		detail_label.add_theme_font_size_override("font_size", 12)
-		detail_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
-		detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		stats_vbox.add_child(detail_label)
+	score_label.custom_minimum_size = Vector2(60, 0)
+	hbox.add_child(score_label)
 	
 	container.add_child(entry_panel)
 
