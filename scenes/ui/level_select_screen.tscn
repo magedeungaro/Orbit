@@ -91,11 +91,11 @@ autowrap_mode = 3
 layout_mode = 2
 
 [node name="ThumbnailContainer" type="CenterContainer" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer"]
-custom_minimum_size = Vector2(0, 400)
+custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 
 [node name="ThumbnailRect" type="TextureRect" parent="MainContainer/DetailPanel/MarginContainer/VBoxContainer/ThumbnailContainer"]
-custom_minimum_size = Vector2(500, 350)
+custom_minimum_size = Vector2(500, 250)
 layout_mode = 2
 expand_mode = 3
 stretch_mode = 5

@@ -20,6 +20,8 @@ config/icon="res://icon.svg"
 Events="*res://autoload/events.gd"
 LevelManager="*res://autoload/level_manager.gd"
 GameController="*res://autoload/game_controller.gd"
+LootLockerManager="*res://autoload/lootlocker_manager.gd"
+LootLockerSDK="*res://addons/LootLockerSDK/LootLockerSDK.gd"
 
 [display]
 
@@ -32,6 +34,10 @@ window/handheld/orientation=1
 [dotnet]
 
 project/assembly_name="Orbit"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/LootLockerSDK/plugin.cfg")
 
 [input]
 

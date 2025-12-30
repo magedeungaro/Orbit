@@ -57,6 +57,39 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "SOI Display: On"
 
+[node name="PlayerNameLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "Player Name:"
+horizontal_alignment = 1
+
+[node name="PlayerNameEdit" type="LineEdit" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(320, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = ""
+placeholder_text = "Enter your name"
+max_length = 20
+alignment = 1
+
+[node name="NameButtonsContainer" type="HBoxContainer" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="SaveNameButton" type="Button" parent="CenterContainer/VBoxContainer/NameButtonsContainer"]
+custom_minimum_size = Vector2(150, 45)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Save Name"
+
+[node name="RandomNameButton" type="Button" parent="CenterContainer/VBoxContainer/NameButtonsContainer"]
+custom_minimum_size = Vector2(150, 45)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Random Name"
+
 [node name="Spacer2" type="Control" parent="CenterContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 15)
 layout_mode = 2

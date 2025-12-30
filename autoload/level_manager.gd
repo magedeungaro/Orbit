@@ -24,6 +24,7 @@ var _level_configs: Dictionary = {}  # level_id -> LevelConfig data (cached)
 
 
 func _ready() -> void:
+	PlayerProfile.initialize()  # Initialize player profile first
 	_initialize_level_scenes()
 	_unlock_all_levels()  # Unlock all levels from the start
 	load_progress()
