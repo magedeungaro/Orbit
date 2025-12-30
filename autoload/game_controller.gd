@@ -865,7 +865,7 @@ func _display_cached_leaderboard(level_id: int) -> void:
 ## Create a leaderboard entry UI element
 func _create_leaderboard_entry(container: Control, entry: Dictionary, is_player: bool = false) -> void:
 	var entry_panel = PanelContainer.new()
-	entry_panel.custom_minimum_size = Vector2(0, 35)
+	entry_panel.custom_minimum_size = Vector2(0, 65)
 	
 	var panel_style = StyleBoxFlat.new()
 	if is_player:
@@ -877,39 +877,55 @@ func _create_leaderboard_entry(container: Control, entry: Dictionary, is_player:
 	panel_style.corner_radius_top_right = 5
 	panel_style.corner_radius_bottom_left = 5
 	panel_style.corner_radius_bottom_right = 5
-	panel_style.content_margin_left = 8
-	panel_style.content_margin_right = 8
-	panel_style.content_margin_top = 5
-	panel_style.content_margin_bottom = 5
+	panel_style.content_margin_left = 12
+	panel_style.content_margin_right = 12
+	panel_style.content_margin_top = 8
+	panel_style.content_margin_bottom = 8
 	entry_panel.add_theme_stylebox_override("panel", panel_style)
 	
 	var hbox = HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 8)
+	hbox.add_theme_constant_override("separation", 10)
 	entry_panel.add_child(hbox)
 	
 	# Rank
 	var rank_label = Label.new()
 	rank_label.text = "#%d" % entry["rank"]
-	rank_label.add_theme_font_size_override("font_size", 14)
+	rank_label.add_theme_font_size_override("font_size", 16)
 	rank_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
-	rank_label.custom_minimum_size = Vector2(40, 0)
+	rank_label.custom_minimum_size = Vector2(45, 0)
+	rank_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hbox.add_child(rank_label)
+	
+	# Player info (name + metadata)
+	var info_vbox = VBoxContainer.new()
+	info_vbox.add_theme_constant_override("separation", 3)
+	info_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(info_vbox)
 	
 	# Player name
 	var name_label = Label.new()
 	name_label.text = entry["member_id"]
-	name_label.add_theme_font_size_override("font_size", 13)
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.add_theme_font_size_override("font_size", 15)
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	hbox.add_child(name_label)
+	info_vbox.add_child(name_label)
+	
+	# Time and fuel from metadata
+	if entry["metadata"] and entry["metadata"].has("time") and entry["metadata"].has("fuel"):
+		var detail_label = Label.new()
+		var time_str = ScoringSystem.format_time(entry["metadata"]["time"])
+		detail_label.text = "Time: %s | Fuel: %.0f%%" % [time_str, entry["metadata"]["fuel"]]
+		detail_label.add_theme_font_size_override("font_size", 12)
+		detail_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+		info_vbox.add_child(detail_label)
 	
 	# Score
 	var score_label = Label.new()
-	score_label.text = "%d" % entry["score"]
-	score_label.add_theme_font_size_override("font_size", 14)
+	score_label.text = "%d pts" % entry["score"]
+	score_label.add_theme_font_size_override("font_size", 16)
 	score_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	score_label.custom_minimum_size = Vector2(60, 0)
+	score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	score_label.custom_minimum_size = Vector2(80, 0)
 	hbox.add_child(score_label)
 	
 	container.add_child(entry_panel)
