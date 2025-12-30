@@ -81,10 +81,10 @@ var _options_opened_from_pause: bool = false
 # Track where level select was opened from
 enum LevelSelectContext { MAIN_MENU, PAUSE, END_GAME }
 var _level_select_context: LevelSelectContext = LevelSelectContext.MAIN_MENU
-var _fetching_leaderboard_for: int = -1  # Track which level's leaderboard is being fetched
 var _selected_level_id: int = -1  # Currently selected level for detail display
 var _leaderboard_cache: Dictionary = {}  # Cache of leaderboards {level_id: entries_array}
 var _cache_timestamp: Dictionary = {}  # Track when each cache entry was created
+var _active_fetch_tasks: Dictionary = {}  # Track active fetch tasks {level_id: task_id}
 const CACHE_EXPIRY_SECONDS: int = 300  # Cache expires after 5 minutes
 
 # Store initial ship position for restart
@@ -143,7 +143,7 @@ func _input(event: InputEvent) -> void:
 					has_level_button_focus = true
 					break
 			
-			if selected_level_id > 0 and (play_button.has_focus() or has_level_button_focus):
+			if _selected_level_id > 0 and (play_button.has_focus() or has_level_button_focus):
 				_on_level_play_button_pressed()
 				get_viewport().set_input_as_handled()
 
@@ -350,8 +350,6 @@ func _setup_play_again_button() -> void:
 	vbox.move_child(play_again_button, restart_level_index + 1)
 
 
-var selected_level_id: int = 1
-
 func _populate_level_buttons() -> void:
 	var container = level_select_screen.get_node("MainContainer/LeftPanel/LevelCardsScroll/LevelCardsContainer")
 	
@@ -549,23 +547,23 @@ func _populate_level_buttons() -> void:
 		if level_ids.size() > 0:
 			var first_level = LevelManager.get_level(level_ids[0])
 			if first_level:
+				_selected_level_id = level_ids[0]
 				_update_level_detail_panel(first_level)
-				selected_level_id = level_ids[0]
 
 
 func _on_level_card_selected(level_id: int, level: LevelConfig) -> void:
-	selected_level_id = level_id
+	_selected_level_id = level_id
 	_update_level_detail_panel(level)
 
 
 func _on_level_card_focused(level_id: int, level: LevelConfig) -> void:
-	selected_level_id = level_id
+	_selected_level_id = level_id
 	_update_level_detail_panel(level)
 
 
 func _on_level_play_button_pressed() -> void:
-	if selected_level_id > 0:
-		_on_level_button_pressed(selected_level_id)
+	if _selected_level_id > 0:
+		_on_level_button_pressed(_selected_level_id)
 
 
 func _update_level_detail_panel(level: LevelConfig) -> void:
@@ -699,52 +697,13 @@ func _load_mock_leaderboard(level_id: int) -> void:
 	# Display immediately
 	_display_cached_leaderboard(level_id)
 
-## Prefetch all leaderboards for unlocked levels
-func _prefetch_all_leaderboards() -> void:
-	if not LootLockerManager or not LevelManager:
-		return
-	
-	print("[GameController] Prefetching leaderboards for all unlocked levels")
-	
-	for level_id in range(1, 7):  # Levels 1-6
-		if LevelManager.is_level_unlocked(level_id):
-			# Check if cache is still valid
-			if _is_cache_valid(level_id):
-				continue
-			
-			# Fetch in background
-			_fetch_leaderboard_to_cache(level_id)
-
-## Fetch leaderboard and store in cache (non-blocking)
-func _fetch_leaderboard_to_cache(level_id: int) -> void:
-	# Fetch top 20 entries
-	LootLockerManager.fetch_leaderboard(level_id, 20)
-	var result = await LootLockerManager.leaderboard_fetched
-	var success: bool = result[0]
-	var returned_level_id: int = result[1]
-	var entries: Array = result[2]
-	
-	if not success or returned_level_id != level_id:
-		return
-	
-	# Fetch player's rank
-	var player_rank_data: Dictionary = {}
-	if LootLockerManager.player_id > 0:
-		var rank_result = await LootLockerManager.fetch_player_rank(level_id)
-		if rank_result["success"]:
-			player_rank_data = rank_result
-	
-	# Store in cache
-	_leaderboard_cache[level_id] = {
-		"entries": entries,
-		"player_rank": player_rank_data
-	}
-	_cache_timestamp[level_id] = Time.get_unix_time_from_system()
-	print("[GameController] Cached leaderboard for level ", level_id, " with ", entries.size(), " entries")
-	
-	# If this is the currently selected level, display it
-	if _selected_level_id == level_id:
-		_display_cached_leaderboard(level_id)
+## Invalidate cached leaderboard for a specific level
+func _invalidate_leaderboard_cache(level_id: int) -> void:
+	if _leaderboard_cache.has(level_id):
+		_leaderboard_cache.erase(level_id)
+		print("[GameController] Invalidated leaderboard cache for level ", level_id)
+	if _cache_timestamp.has(level_id):
+		_cache_timestamp.erase(level_id)
 
 ## Check if cached leaderboard is still valid
 func _is_cache_valid(level_id: int) -> bool:
@@ -765,118 +724,87 @@ func _fetch_level_leaderboard(level_id: int) -> void:
 		print("[GameController] Leaderboard container not found!")
 		return
 	
-	# Check if we have valid cached data
+	# Check if we have valid cached data for the current level
 	if _is_cache_valid(level_id):
 		print("[GameController] Using cached leaderboard for level ", level_id)
 		_display_cached_leaderboard(level_id)
 		return
 	
-	# Prevent duplicate fetches for the same level
-	if _fetching_leaderboard_for == level_id:
-		print("[GameController] Already fetching leaderboard for level ", level_id, ", skipping duplicate request")
-		return
+	# Show loading indicator immediately
+	_show_loading_indicator(leaderboard_container)
 	
-	_fetching_leaderboard_for = level_id
-	print("[GameController] Fetching leaderboard for level ", level_id)
-	
+	# Fetch current level with display
+	await _fetch_leaderboard_with_display(level_id)
+
+
+## Show loading indicator in leaderboard container
+func _show_loading_indicator(container: Control) -> void:
 	# Clear existing entries
-	for child in leaderboard_container.get_children():
+	for child in container.get_children():
 		child.queue_free()
 	
-	# Show loading indicator
 	var loading_label = Label.new()
 	loading_label.text = "Loading leaderboard..."
 	loading_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	leaderboard_container.add_child(loading_label)
+	container.add_child(loading_label)
+
+
+## Fetch leaderboard and display it (foreground task)
+func _fetch_leaderboard_with_display(level_id: int) -> void:
+	# Generate unique task ID
+	var task_id = Time.get_ticks_msec()
+	_active_fetch_tasks[level_id] = task_id
 	
-	print("[GameController] Requesting leaderboard from LootLockerManager")
+	print("[GameController] Fetching leaderboard for level ", level_id, " (task: ", task_id, ")")
+	
 	# Fetch top 20 leaderboard entries
 	LootLockerManager.fetch_leaderboard(level_id, 20)
-	
-	print("[GameController] Waiting for leaderboard response...")
 	var result = await LootLockerManager.leaderboard_fetched
+	
+	# Check if this task is still active (not cancelled by a new selection)
+	if not _active_fetch_tasks.has(level_id) or _active_fetch_tasks[level_id] != task_id:
+		print("[GameController] Task ", task_id, " cancelled for level ", level_id)
+		return
+	
 	var success: bool = result[0]
 	var returned_level_id: int = result[1]
 	var entries: Array = result[2]
 	
 	# Fetch player's rank
 	var player_rank_data: Dictionary = {}
-	if LootLockerManager.player_id > 0:
+	if LootLockerManager.player_id > 0 and success:
 		var rank_result = await LootLockerManager.fetch_player_rank(level_id)
+		
+		# Check again if task is still active after await
+		if not _active_fetch_tasks.has(level_id) or _active_fetch_tasks[level_id] != task_id:
+			print("[GameController] Task ", task_id, " cancelled during rank fetch for level ", level_id)
+			return
+		
 		if rank_result["success"]:
 			player_rank_data = rank_result
 	
-	print("[GameController] Leaderboard response received - Success: ", success, " Level: ", returned_level_id, " Entries: ", entries.size())
-	
-	# Reset fetching guard
-	_fetching_leaderboard_for = -1
-	
-	# Store in cache
+	# Store in cache if successful
 	if success:
 		_leaderboard_cache[returned_level_id] = {
 			"entries": entries,
 			"player_rank": player_rank_data
 		}
 		_cache_timestamp[returned_level_id] = Time.get_unix_time_from_system()
+		print("[GameController] Cached leaderboard for level ", returned_level_id, " with ", entries.size(), " entries")
 	
 	# Only display if this is still the selected level
 	if _selected_level_id != level_id:
-		print("[GameController] User switched to different level, ignoring response")
+		print("[GameController] Level changed, not displaying fetched data for level ", level_id)
+		_active_fetch_tasks.erase(level_id)
 		return
 	
-	# Verify this is the right level
-	if returned_level_id != level_id:
-		print("[GameController] Level mismatch, ignoring response")
-		return
+	# Display the leaderboard
+	_display_cached_leaderboard(level_id)
 	
-	# Clear loading indicator
-	if is_instance_valid(loading_label):
-		loading_label.queue_free()
-	
-	if not success or entries.is_empty():
-		print("[GameController] No leaderboard entries found")
-		var no_data_label = Label.new()
-		no_data_label.text = "No leaderboard data yet\nBe the first to complete this level!"
-		no_data_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		no_data_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		leaderboard_container.add_child(no_data_label)
-		return
-	
-	print("[GameController] Displaying ", entries.size(), " leaderboard entries")
-	
-	# Clear existing entries
-	for child in leaderboard_container.get_children():
-		child.queue_free()
-	
-	# Display top 20 entries
-	for entry in entries:
-		_create_leaderboard_entry(leaderboard_container, entry)
-	
-	# Add player's rank at position 21 if available and not in top 20
-	if player_rank_data.get("success", false):
-		var player_rank = player_rank_data.get("rank", 0)
-		if player_rank > 20:  # Only show if player is not already in top 20
-			# Add separator
-			var separator = HSeparator.new()
-			leaderboard_container.add_child(separator)
-			
-			# Add "Your Rank" label
-			var your_rank_label = Label.new()
-			your_rank_label.text = "YOUR RANK"
-			your_rank_label.add_theme_font_size_override("font_size", 14)
-			your_rank_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-			your_rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			leaderboard_container.add_child(your_rank_label)
-			
-			# Add player's entry
-			var player_entry = {
-				"rank": player_rank,
-				"score": player_rank_data.get("score", 0),
-				"member_id": player_rank_data.get("member_id", "You"),
-				"metadata": player_rank_data.get("metadata", {})
-			}
-			_create_leaderboard_entry(leaderboard_container, player_entry, true)
+	# Clean up task tracking
+	_active_fetch_tasks.erase(level_id)
+
 
 ## Display cached leaderboard data
 func _display_cached_leaderboard(level_id: int) -> void:
@@ -1169,6 +1097,9 @@ func show_game_won() -> void:
 				score_data["total_score"],
 				metadata
 			)
+			
+			# Invalidate cache so leaderboard refreshes with new score
+			_invalidate_leaderboard_cache(LevelManager.current_level_id)
 		
 		if next_level_button:
 			next_level_button.visible = LevelManager.has_next_level()
@@ -1231,9 +1162,6 @@ func show_level_select_screen(context: LevelSelectContext = LevelSelectContext.M
 	_hide_all_screens()
 	level_select_screen.visible = true
 	_populate_level_buttons()
-	
-	# Prefetch all leaderboards in the background
-	_prefetch_all_leaderboards()
 	
 	for btn in level_buttons:
 		if not btn.disabled:
