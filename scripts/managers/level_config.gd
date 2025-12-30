@@ -19,3 +19,8 @@ class_name LevelConfig
 
 @export_group("Win Condition")
 @export var stable_orbit_time: float = 10.0
+@export_group("Scoring (S Rank Requirements)")
+## Target time for S rank - faster times get exponentially more points
+@export var s_rank_target_time: float = 30.0
+## Target fuel remaining percentage for S rank (0-100)
+@export var s_rank_target_fuel: float = 100.0

@@ -88,6 +88,10 @@ var _saved_zoom: float = 0.8  # Default zoom level
 # SOI visibility setting
 var soi_visible: bool = true
 
+# Level time tracking
+var _level_start_time: float = 0.0
+var _level_elapsed_time: float = 0.0
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -337,9 +341,15 @@ func _populate_level_buttons() -> void:
 		card_style.corner_radius_bottom_right = 8
 		card.add_theme_stylebox_override("panel", card_style)
 		
+		# Main horizontal layout: content on left, grade on right
+		var card_hbox = HBoxContainer.new()
+		card_hbox.add_theme_constant_override("separation", 20)
+		card.add_child(card_hbox)
+		
 		var card_vbox = VBoxContainer.new()
 		card_vbox.add_theme_constant_override("separation", 8)
-		card.add_child(card_vbox)
+		card_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card_hbox.add_child(card_vbox)
 		
 		# Level title and best score
 		var title_hbox = HBoxContainer.new()
@@ -352,13 +362,85 @@ func _populate_level_buttons() -> void:
 		title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		title_hbox.add_child(title_label)
 		
-		var best_score = LevelManager.get_best_score(level_id)
-		if best_score >= 0:
+		var best_score_data = LevelManager.get_best_score(level_id)
+		if best_score_data["score"] > 0:
+			var score_vbox = VBoxContainer.new()
+			score_vbox.add_theme_constant_override("separation", 2)
+			title_hbox.add_child(score_vbox)
+			
 			var score_label = Label.new()
 			score_label.add_theme_font_size_override("font_size", 18)
 			score_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
-			score_label.text = "Best: %.0f%%" % best_score
-			title_hbox.add_child(score_label)
+			score_label.text = "Best: %d pts" % best_score_data["score"]
+			score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			score_vbox.add_child(score_label)
+			
+			var details_label = Label.new()
+			details_label.add_theme_font_size_override("font_size", 14)
+			details_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+			var time_str = ScoringSystem.format_time(best_score_data["time"])
+			details_label.text = "%s | %.0f%% fuel" % [time_str, best_score_data["fuel"]]
+			details_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			score_vbox.add_child(details_label)
+			
+			# Calculate grade from stored best score data
+			var grade_score_data = ScoringSystem.calculate_score(
+				best_score_data["time"],
+				best_score_data["fuel"],
+				level.s_rank_target_time,
+				level.s_rank_target_fuel,
+				level.max_fuel
+			)
+			var grade = grade_score_data["grade"]
+			
+			# Large grade display on the right
+			var grade_container = CenterContainer.new()
+			grade_container.custom_minimum_size = Vector2(100, 0)
+			card_hbox.add_child(grade_container)
+			
+			# Wrapper control for absolute positioning
+			var grade_wrapper = Control.new()
+			grade_wrapper.custom_minimum_size = Vector2(80, 90)
+			grade_container.add_child(grade_wrapper)
+			
+			# Grade letter (centered)
+			var grade_label = Label.new()
+			grade_label.add_theme_font_override("font", AudiowideFont)
+			grade_label.add_theme_font_size_override("font_size", 64)
+			grade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			grade_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			grade_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+			
+			# Color code grades
+			var grade_color: Color
+			match grade:
+				"S":
+					grade_color = Color(1.0, 0.85, 0.0)  # Gold
+				"A+", "A", "A-":
+					grade_color = Color(0.3, 1.0, 0.5)  # Green
+				"B+", "B", "B-":
+					grade_color = Color(0.4, 0.8, 1.0)  # Blue
+				"C+", "C", "C-":
+					grade_color = Color(1.0, 0.8, 0.4)  # Orange
+				"D+", "D":
+					grade_color = Color(1.0, 0.5, 0.3)  # Red-Orange
+				_:
+					grade_color = Color(0.6, 0.6, 0.6)  # Gray
+			
+			grade_label.add_theme_color_override("font_color", grade_color)
+			grade_label.text = grade
+			grade_wrapper.add_child(grade_label)
+			
+			# "Tier" label anchored at top center (added after so it renders on top)
+			var tier_label = Label.new()
+			tier_label.add_theme_font_override("font", AudiowideFont)
+			tier_label.add_theme_font_size_override("font_size", 16)
+			tier_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			tier_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+			tier_label.text = "Tier"
+			tier_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+			tier_label.position.y = -5
+			grade_wrapper.add_child(tier_label)
 		
 		# Tags
 		var tags_hbox = HBoxContainer.new()
@@ -509,6 +591,9 @@ func _process(_delta: float) -> void:
 	if not is_instance_valid(orbiting_body):
 		return
 	
+	# Update elapsed time
+	_level_elapsed_time = (Time.get_ticks_msec() / 1000.0) - _level_start_time
+	
 	if orbiting_body.is_ship_exploded():
 		show_crash_screen()
 	elif orbiting_body.current_fuel <= 0:
@@ -607,15 +692,41 @@ func show_game_won() -> void:
 	game_won_screen.visible = true
 	
 	var fuel_percent := 0.0
+	var max_fuel := 1000.0
 	if orbiting_body and is_instance_valid(orbiting_body):
 		fuel_percent = orbiting_body.get_fuel_percentage()
+		max_fuel = orbiting_body.max_fuel
+	
+	# Get S rank parameters from level config
+	var s_rank_time := 30.0
+	var s_rank_fuel := 100.0
+	if current_level_root and current_level_root is LevelConfig:
+		s_rank_time = current_level_root.s_rank_target_time
+		s_rank_fuel = current_level_root.s_rank_target_fuel
+	
+	# Calculate score using ScoringSystem with level-specific S rank targets
+	var score_data := ScoringSystem.calculate_score(
+		_level_elapsed_time, 
+		fuel_percent, 
+		s_rank_time,
+		s_rank_fuel,
+		max_fuel
+	)
 	
 	var stats_label = game_won_screen.get_node("CenterContainer/VBoxContainer/StatsLabel")
 	if stats_label and orbiting_body:
-		stats_label.text = "Fuel remaining: %.1f%%" % fuel_percent
+		# Display comprehensive stats with score
+		var time_str := ScoringSystem.format_time(_level_elapsed_time)
+		stats_label.text = "Grade: %s\nScore: %d\n\nTime: %s\nFuel remaining: %.1f%%" % [
+			score_data["grade"],
+			score_data["total_score"],
+			time_str,
+			fuel_percent
+		]
 	
 	if LevelManager:
-		LevelManager.complete_level(fuel_percent)
+		# Pass score data to level manager instead of just fuel percentage
+		LevelManager.complete_level(score_data["total_score"], _level_elapsed_time, fuel_percent)
 		
 		if next_level_button:
 			next_level_button.visible = LevelManager.has_next_level()
@@ -742,6 +853,10 @@ func start_game() -> void:
 	current_state = GameState.PLAYING
 	_hide_all_screens()
 	
+	# Reset level time tracking
+	_level_start_time = Time.get_ticks_msec() / 1000.0
+	_level_elapsed_time = 0.0
+	
 	# Show HUD and touch controls during gameplay
 	if hud:
 		hud.visible = true
@@ -790,6 +905,10 @@ func restart_game() -> void:
 	
 	current_state = GameState.PLAYING
 	_hide_all_screens()
+	
+	# Reset level time tracking
+	_level_start_time = Time.get_ticks_msec() / 1000.0
+	_level_elapsed_time = 0.0
 	
 	# Show HUD and touch controls during gameplay
 	if hud:

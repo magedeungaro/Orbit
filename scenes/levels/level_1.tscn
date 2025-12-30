@@ -1,11 +1,11 @@
-[gd_scene load_steps=13 format=3 uid="uid://c1level1scene"]
+[gd_scene load_steps=14 format=3 uid="uid://c1level1scene"]
 
 [ext_resource type="Script" uid="uid://csvg6f6vuqqfe" path="res://scripts/managers/level_config.gd" id="1_config"]
 [ext_resource type="Texture2D" uid="uid://b7t2u1sjbs44o" path="res://Assets/Scenarios thumbnails/Level 1 Thumbnail.png" id="1_thumbnail"]
 [ext_resource type="Script" uid="uid://derr4cln3we0j" path="res://scripts/player/camera_follow.gd" id="2_camera"]
-[ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/core/orbit_visualization.gd" id="3_orbit_vis"]
+[ext_resource type="Script" path="res://scripts/core/orbit_visualization.gd" id="3_orbit_vis"]
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="4_bg"]
-[ext_resource type="Script" uid="uid://0baglt5002m1" path="res://scripts/celestial/central_body.gd" id="5_planet"]
+[ext_resource type="Script" path="res://scripts/celestial/central_body.gd" id="5_planet"]
 [ext_resource type="PackedScene" path="res://scenes/prefabs/ship.tscn" id="6_ship"]
 [ext_resource type="Texture2D" uid="uid://fyxnlyles8s2" path="res://Assets/Sprites/Planet 2.PNG" id="7_tex1"]
 [ext_resource type="Texture2D" uid="uid://b56y5xo5mrxda" path="res://Assets/Sprites/Planet 3.PNG" id="8_tex2"]
@@ -22,11 +22,12 @@ radius = 156.0
 
 [node name="Level1" type="Node2D"]
 script = ExtResource("1_config")
-level_id = 1
 level_name = "First Steps"
 description = "Master the fundamentals of spaceflight. Learn to control your thrust angle and achieve a stable orbit around the target planet."
 thumbnail = ExtResource("1_thumbnail")
 tags = Array[String](["Easy", "Patched Conic", "Static Planets"])
+s_rank_target_time = 85.0
+s_rank_target_fuel = 70.0
 
 [node name="World" type="Node2D" parent="."]
 

@@ -68,6 +68,8 @@ func _load_level_config(scene_path: String) -> LevelConfig:
 		config.ship_start_velocity = instance.ship_start_velocity
 		config.max_fuel = instance.max_fuel
 		config.stable_orbit_time = instance.stable_orbit_time
+		config.s_rank_target_time = instance.s_rank_target_time
+		config.s_rank_target_fuel = instance.s_rank_target_fuel
 		instance.queue_free()
 		return config
 	
@@ -145,12 +147,29 @@ func unlock_level(level_id: int) -> void:
 
 
 ## Complete current level
-func complete_level(fuel_remaining_percent: float) -> void:
+func complete_level(score: int, time_elapsed: float, fuel_remaining_percent: float) -> void:
 	var level_id := current_level_id
 	
-	# Update best score
-	if level_id not in level_best_scores or fuel_remaining_percent > level_best_scores[level_id]:
-		level_best_scores[level_id] = fuel_remaining_percent
+	# Update best score - store complete score data
+	var is_new_best := false
+	if level_id not in level_best_scores:
+		is_new_best = true
+	else:
+		# Handle both new Dictionary format and legacy float format
+		var existing_score = level_best_scores[level_id]
+		if existing_score is Dictionary:
+			if score > existing_score["score"]:
+				is_new_best = true
+		else:
+			# Legacy format (just a float) - always replace with new format
+			is_new_best = true
+	
+	if is_new_best:
+		level_best_scores[level_id] = {
+			"score": score,
+			"time": time_elapsed,
+			"fuel": fuel_remaining_percent
+		}
 	
 	save_progress()
 	
@@ -159,10 +178,23 @@ func complete_level(fuel_remaining_percent: float) -> void:
 
 
 ## Get best score for a level
-func get_best_score(level_id: int) -> float:
+func get_best_score(level_id: int) -> Dictionary:
 	if level_id in level_best_scores:
-		return level_best_scores[level_id]
-	return -1.0
+		# Return the stored dictionary, or convert old float format
+		if level_best_scores[level_id] is Dictionary:
+			return level_best_scores[level_id]
+		else:
+			# Legacy support: convert old fuel-only format to dictionary
+			return {
+				"score": 0,
+				"time": 0.0,
+				"fuel": level_best_scores[level_id]
+			}
+	return {
+		"score": 0,
+		"time": 0.0,
+		"fuel": 0.0
+	}
 
 
 ## Check if there's a next level

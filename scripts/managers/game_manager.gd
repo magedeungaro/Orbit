@@ -273,11 +273,11 @@ func _populate_level_buttons() -> void:
 		btn.add_theme_font_size_override("font_size", 20)
 		
 		var is_unlocked = LevelManager.is_level_unlocked(level_id)
-		var best_score = LevelManager.get_best_score(level_id)
+		var best_score_data = LevelManager.get_best_score(level_id)
 		
 		var btn_text = "Level %d: %s" % [level_id, level.level_name]
-		if best_score >= 0:
-			btn_text += " (Best: %.0f%%)" % best_score
+		if best_score_data["score"] > 0:
+			btn_text += " (Best: %d pts)" % best_score_data["score"]
 		elif not is_unlocked:
 			btn_text = "Level %d: LOCKED" % level_id
 		

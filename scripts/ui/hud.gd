@@ -5,6 +5,7 @@ var speed_label: Label
 var relative_speed_label: Label
 var reference_body_label: Label
 var info_label: Label
+var time_label: Label
 var fuel_label: Label
 var fuel_bar: ProgressBar
 var orbit_label: Label
@@ -43,6 +44,19 @@ func _create_ui() -> void:
 	# Set a fixed minimum width to prevent resizing when numbers change
 	vbox.custom_minimum_size = Vector2(300, 0)
 	margin.add_child(vbox)
+	
+	# Time label
+	time_label = Label.new()
+	time_label.name = "TimeLabel"
+	time_label.add_theme_font_override("font", audiowide_font)
+	time_label.add_theme_font_size_override("font_size", 24)
+	time_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+	time_label.custom_minimum_size = Vector2(280, 0)
+	vbox.add_child(time_label)
+	
+	var time_spacer = Control.new()
+	time_spacer.custom_minimum_size = Vector2(0, 10)
+	vbox.add_child(time_spacer)
 	
 	fuel_label = Label.new()
 	fuel_label.name = "FuelLabel"
@@ -166,6 +180,13 @@ func _create_ui() -> void:
 func _process(_delta: float) -> void:
 	if orbiting_body == null or fuel_label == null:
 		return
+	
+	# Display elapsed time
+	if time_label and GameController:
+		var elapsed_time = GameController._level_elapsed_time
+		var minutes = int(elapsed_time) / 60
+		var seconds = fmod(elapsed_time, 60.0)
+		time_label.text = "TIME: %d:%05.2f" % [minutes, seconds]
 	
 	var fuel_percent = orbiting_body.get_fuel_percentage()
 	fuel_label.text = "FUEL: %.0f%%" % fuel_percent
