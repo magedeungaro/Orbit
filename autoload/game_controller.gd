@@ -1339,16 +1339,100 @@ func show_game_won() -> void:
 		max_fuel
 	)
 	
-	var stats_label = game_won_screen.get_node("CenterContainer/VBoxContainer/StatsLabel")
-	if stats_label and orbiting_body:
-		# Display comprehensive stats with score
+	# Create styled stats display
+	var stats_container = game_won_screen.get_node("CenterContainer/VBoxContainer/StatsLabel")
+	if stats_container and orbiting_body:
+		# Clear existing content if it's a label
+		if stats_container is Label:
+			# Replace the Label with an HBoxContainer for side-by-side layout
+			var parent = stats_container.get_parent()
+			var index = stats_container.get_index()
+			stats_container.queue_free()
+			
+			# Create new HBoxContainer
+			var hbox = HBoxContainer.new()
+			hbox.name = "StatsLabel"
+			hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+			parent.add_child(hbox)
+			parent.move_child(hbox, index)
+			stats_container = hbox
+		
+		# Clear any existing children
+		for child in stats_container.get_children():
+			child.queue_free()
+		
+		# Get grade info
+		var grade = score_data["grade"]
+		var grade_color: Color
+		match grade:
+			"S":
+				grade_color = Color(1.0, 0.85, 0.0)  # Gold
+			"A+", "A", "A-":
+				grade_color = Color(0.3, 1.0, 0.5)  # Green
+			"B+", "B", "B-":
+				grade_color = Color(0.4, 0.8, 1.0)  # Blue
+			"C+", "C", "C-":
+				grade_color = Color(1.0, 0.8, 0.4)  # Orange
+			"D+", "D":
+				grade_color = Color(1.0, 0.5, 0.3)  # Red-Orange
+			_:
+				grade_color = Color(0.6, 0.6, 0.6)  # Gray
+		
+		# Left side - Large grade letter
+		var grade_container = CenterContainer.new()
+		grade_container.custom_minimum_size = Vector2(120, 0)
+		stats_container.add_child(grade_container)
+		
+		# Wrapper control for absolute positioning
+		var grade_wrapper = Control.new()
+		grade_wrapper.custom_minimum_size = Vector2(120, 100)
+		grade_container.add_child(grade_wrapper)
+		
+		# Grade letter (centered)
+		var grade_label = Label.new()
+		grade_label.add_theme_font_override("font", AudiowideFont)
+		grade_label.add_theme_font_size_override("font_size", 80)
+		grade_label.add_theme_color_override("font_color", grade_color)
+		grade_label.text = grade
+		grade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		grade_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		grade_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+		grade_wrapper.add_child(grade_label)
+		
+		# "Tier" label anchored at top center (added after so it renders on top)
+		var tier_label = Label.new()
+		tier_label.add_theme_font_override("font", AudiowideFont)
+		tier_label.add_theme_font_size_override("font_size", 16)
+		tier_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+		tier_label.text = "Tier"
+		tier_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tier_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		tier_label.position.y = -5
+		grade_wrapper.add_child(tier_label)
+		
+		# Right side - Stats details
+		var stats_vbox = VBoxContainer.new()
+		stats_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		stats_container.add_child(stats_vbox)
+		
+		var score_label = Label.new()
+		score_label.add_theme_font_size_override("font_size", 28)
+		score_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+		score_label.text = "Score: %d" % score_data["total_score"]
+		stats_vbox.add_child(score_label)
+		
 		var time_str := ScoringSystem.format_time(_level_elapsed_time)
-		stats_label.text = "Grade: %s\nScore: %d\n\nTime: %s\nFuel remaining: %.1f%%" % [
-			score_data["grade"],
-			score_data["total_score"],
-			time_str,
-			fuel_percent
-		]
+		var time_label = Label.new()
+		time_label.add_theme_font_size_override("font_size", 20)
+		time_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+		time_label.text = "Time: %s" % time_str
+		stats_vbox.add_child(time_label)
+		
+		var fuel_label = Label.new()
+		fuel_label.add_theme_font_size_override("font_size", 20)
+		fuel_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+		fuel_label.text = "Fuel: %.1f%%" % fuel_percent
+		stats_vbox.add_child(fuel_label)
 	
 	if LevelManager:
 		# Pass score data to level manager instead of just fuel percentage
