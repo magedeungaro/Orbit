@@ -1038,9 +1038,12 @@ func _show_rank_encouragement_message(level_id: int) -> void:
 		percentage_label.text = "[center]Complete more levels![/center]"
 		return
 	
-	# Show current rank without fanfare
+	# Get the player's best score from the rank result
+	var best_score: int = rank_result.get("score", 0)
+	
+	# Show current rank and best score
 	rank_label.text = "[center]Current: Rank #%d[/center]" % player_rank
-	percentage_label.text = "[center]Beat your best for a new rank![/center]"
+	percentage_label.text = "[center]Your Best: %d pts | Beat it for a new rank![/center]" % best_score
 
 
 ## Reset global rank panel to loading state
