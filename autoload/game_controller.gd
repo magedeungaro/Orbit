@@ -34,6 +34,7 @@ var ui_layer: CanvasLayer
 var start_screen: Control
 var game_over_screen: Control
 var game_won_screen: Control
+var global_rank_panel: PanelContainer  # For displaying player's global rank with pulsing effect
 var crash_screen: Control
 var options_screen: Control
 var level_select_screen: Control
@@ -53,6 +54,10 @@ var crash_restart_button: Button
 var back_button: Button
 var touch_controls_button: Button
 var soi_visibility_button: Button
+var player_name_label: Label
+var player_name_edit: LineEdit
+var save_name_button: Button
+var random_name_button: Button
 var level_select_back_button: Button
 var level_buttons: Array[Button] = []
 
@@ -77,6 +82,11 @@ var _options_opened_from_pause: bool = false
 # Track where level select was opened from
 enum LevelSelectContext { MAIN_MENU, PAUSE, END_GAME }
 var _level_select_context: LevelSelectContext = LevelSelectContext.MAIN_MENU
+var _selected_level_id: int = -1  # Currently selected level for detail display
+var _leaderboard_cache: Dictionary = {}  # Cache of leaderboards {level_id: entries_array}
+var _cache_timestamp: Dictionary = {}  # Track when each cache entry was created
+var _active_fetch_tasks: Dictionary = {}  # Track active fetch tasks {level_id: task_id}
+const CACHE_EXPIRY_SECONDS: int = 300  # Cache expires after 5 minutes
 
 # Store initial ship position for restart
 var _ship_start_position: Vector2
@@ -95,6 +105,14 @@ var _level_elapsed_time: float = 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	
+	# Clear all leaderboard caches on new game launch
+	print("[GameController] _ready() - Clearing all caches on game launch")
+	print("[GameController] Before clear - Cache size: ", _leaderboard_cache.size())
+	_leaderboard_cache.clear()
+	_cache_timestamp.clear()
+	_active_fetch_tasks.clear()
+	print("[GameController] After clear - Cache size: ", _leaderboard_cache.size())
 	
 	# Connect to camera zoom events to persist zoom across levels
 	if Events:
@@ -134,7 +152,7 @@ func _input(event: InputEvent) -> void:
 					has_level_button_focus = true
 					break
 			
-			if selected_level_id > 0 and (play_button.has_focus() or has_level_button_focus):
+			if _selected_level_id > 0 and (play_button.has_focus() or has_level_button_focus):
 				_on_level_play_button_pressed()
 				get_viewport().set_input_as_handled()
 
@@ -148,6 +166,12 @@ func _setup_ui_screens() -> void:
 	discord_button = start_screen.get_node("CenterContainer/VBoxContainer/DiscordButton")
 	quit_button = start_screen.get_node("CenterContainer/VBoxContainer/QuitButton")
 	# start_button.pressed.connect(_on_start_pressed)  # Disabled for Story Mode coming soon
+	
+	# Apply pulsing effect to "Coming soon" label
+	var coming_soon_label = start_button.get_node("ComingSoonLabel")
+	if coming_soon_label:
+		start_scale_pulse([coming_soon_label], 1.1, 0.6)
+	
 	level_select_button.pressed.connect(_on_level_select_pressed)
 	options_button.pressed.connect(_on_options_pressed)
 	discord_button.pressed.connect(_on_discord_pressed)
@@ -175,6 +199,7 @@ func _setup_ui_screens() -> void:
 	game_won_quit_to_menu_button.pressed.connect(_on_quit_to_menu_pressed)
 	_setup_next_level_button()
 	_setup_play_again_button()
+	_setup_global_rank_panel()
 	
 	crash_screen = CrashScreenScene.instantiate()
 	crash_screen.visible = false
@@ -191,10 +216,17 @@ func _setup_ui_screens() -> void:
 	ui_layer.add_child(options_screen)
 	touch_controls_button = options_screen.get_node("CenterContainer/VBoxContainer/TouchControlsButton")
 	soi_visibility_button = options_screen.get_node("CenterContainer/VBoxContainer/SOIVisibilityButton")
+	player_name_label = options_screen.get_node("CenterContainer/VBoxContainer/PlayerNameLabel")
+	player_name_edit = options_screen.get_node("CenterContainer/VBoxContainer/PlayerNameEdit")
+	save_name_button = options_screen.get_node("CenterContainer/VBoxContainer/NameButtonsContainer/SaveNameButton")
+	random_name_button = options_screen.get_node("CenterContainer/VBoxContainer/NameButtonsContainer/RandomNameButton")
 	back_button = options_screen.get_node("CenterContainer/VBoxContainer/BackButton")
 	touch_controls_button.pressed.connect(_on_touch_controls_pressed)
 	soi_visibility_button.pressed.connect(_on_soi_visibility_pressed)
+	save_name_button.pressed.connect(_on_save_name_pressed)
+	random_name_button.pressed.connect(_on_random_name_pressed)
 	back_button.pressed.connect(_on_back_pressed)
+	_update_player_name_display()
 	_setup_focus_neighbors_three(touch_controls_button, soi_visibility_button, back_button)
 	
 	_setup_pause_screen()
@@ -272,7 +304,35 @@ func _setup_level_select_screen() -> void:
 	level_select_back_button = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer/ButtonsContainer/BackButton")
 	level_select_back_button.pressed.connect(_on_level_select_back_pressed)
 	
+	
 	_populate_level_buttons()
+
+
+## Create leaderboard container in the detail panel
+func _setup_leaderboard_container() -> void:
+	var vbox = level_select_screen.get_node("MainContainer/DetailPanel/MarginContainer/VBoxContainer")
+	
+	# Create leaderboard section
+	var leaderboard_container = VBoxContainer.new()
+	leaderboard_container.name = "LeaderboardContainer"
+	leaderboard_container.add_theme_constant_override("separation", 8)
+	
+	# Leaderboard title
+	var title_label = Label.new()
+	title_label.name = "LeaderboardTitle"
+	title_label.text = "LEADERBOARD"
+	title_label.add_theme_font_override("font", AudiowideFont)
+	title_label.add_theme_font_size_override("font_size", 24)
+	title_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	leaderboard_container.add_child(title_label)
+	
+	# Add spacer before leaderboard
+	var spacer = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 20)
+	vbox.add_child(spacer)
+	
+	vbox.add_child(leaderboard_container)
 
 
 func _setup_next_level_button() -> void:
@@ -306,7 +366,85 @@ func _setup_play_again_button() -> void:
 	vbox.move_child(play_again_button, restart_level_index + 1)
 
 
-var selected_level_id: int = 1
+func _setup_global_rank_panel() -> void:
+	var vbox = game_won_screen.get_node("CenterContainer/VBoxContainer")
+	
+	# Create panel container for global rank display
+	global_rank_panel = PanelContainer.new()
+	global_rank_panel.name = "GlobalRankPanel"
+	global_rank_panel.custom_minimum_size = Vector2(500, 120)
+	
+	# Style the panel with vibrant colors
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.3, 0.95)  # Dark blue background
+	style.border_color = Color(0.0, 0.8, 1.0)  # Bright cyan border
+	style.border_width_left = 3
+	style.border_width_right = 3
+	style.border_width_top = 3
+	style.border_width_bottom = 3
+	style.corner_radius_top_left = 15
+	style.corner_radius_top_right = 15
+	style.corner_radius_bottom_left = 15
+	style.corner_radius_bottom_right = 15
+	style.content_margin_left = 20
+	style.content_margin_right = 20
+	style.content_margin_top = 15
+	style.content_margin_bottom = 15
+	global_rank_panel.add_theme_stylebox_override("panel", style)
+	
+	# Create VBox for content
+	var content_vbox = VBoxContainer.new()
+	content_vbox.name = "VBoxContainer"
+	content_vbox.add_theme_constant_override("separation", 5)
+	global_rank_panel.add_child(content_vbox)
+	
+	# Title label
+	var title_label = Label.new()
+	title_label.name = "TitleLabel"
+	title_label.add_theme_font_override("font", AudiowideFont)
+	title_label.add_theme_font_size_override("font_size", 20)
+	title_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_label.text = "GLOBAL RANKING"
+	content_vbox.add_child(title_label)
+	
+	# Rank label (large, pulsing with BBCode)
+	var rank_label = RichTextLabel.new()
+	rank_label.name = "RankLabel"
+	rank_label.bbcode_enabled = true
+	rank_label.fit_content = true
+	rank_label.scroll_active = false
+	rank_label.add_theme_font_override("normal_font", AudiowideFont)
+	rank_label.add_theme_font_size_override("normal_font_size", 42)
+	rank_label.add_theme_color_override("default_color", Color(0.0, 1.0, 0.8))  # Bright cyan/green
+	rank_label.custom_minimum_size = Vector2(450, 60)
+	rank_label.text = "[center]Loading...[/center]"
+	content_vbox.add_child(rank_label)
+	
+	# Percentage label (medium, pulsing with BBCode)
+	var percentage_label = RichTextLabel.new()
+	percentage_label.name = "PercentageLabel"
+	percentage_label.bbcode_enabled = true
+	percentage_label.fit_content = true
+	percentage_label.scroll_active = false
+	percentage_label.add_theme_font_override("normal_font", AudiowideFont)
+	percentage_label.add_theme_font_size_override("normal_font_size", 24)
+	percentage_label.add_theme_color_override("default_color", Color(1.0, 0.85, 0.0))  # Gold
+	percentage_label.custom_minimum_size = Vector2(450, 40)
+	percentage_label.text = ""
+	content_vbox.add_child(percentage_label)
+	
+	# Insert after stats label
+	var stats_label = vbox.get_node_or_null("StatsLabel")
+	if stats_label:
+		var stats_index = stats_label.get_index()
+		vbox.add_child(global_rank_panel)
+		vbox.move_child(global_rank_panel, stats_index + 1)
+	else:
+		vbox.add_child(global_rank_panel)
+	
+	global_rank_panel.visible = true  # Always visible
+
 
 func _populate_level_buttons() -> void:
 	var container = level_select_screen.get_node("MainContainer/LeftPanel/LevelCardsScroll/LevelCardsContainer")
@@ -488,7 +626,6 @@ func _populate_level_buttons() -> void:
 		btn.custom_minimum_size = Vector2(0, 120)
 		btn.flat = true
 		btn.pressed.connect(_on_level_card_selected.bind(level_id, level))
-		btn.mouse_entered.connect(_update_level_detail_panel.bind(level))
 		btn.focus_entered.connect(_on_level_card_focused.bind(level_id, level))
 		
 		var card_wrapper = Control.new()
@@ -506,23 +643,23 @@ func _populate_level_buttons() -> void:
 		if level_ids.size() > 0:
 			var first_level = LevelManager.get_level(level_ids[0])
 			if first_level:
+				_selected_level_id = level_ids[0]
 				_update_level_detail_panel(first_level)
-				selected_level_id = level_ids[0]
 
 
 func _on_level_card_selected(level_id: int, level: LevelConfig) -> void:
-	selected_level_id = level_id
+	_selected_level_id = level_id
 	_update_level_detail_panel(level)
 
 
 func _on_level_card_focused(level_id: int, level: LevelConfig) -> void:
-	selected_level_id = level_id
+	_selected_level_id = level_id
 	_update_level_detail_panel(level)
 
 
 func _on_level_play_button_pressed() -> void:
-	if selected_level_id > 0:
-		_on_level_button_pressed(selected_level_id)
+	if _selected_level_id > 0:
+		_on_level_button_pressed(_selected_level_id)
 
 
 func _update_level_detail_panel(level: LevelConfig) -> void:
@@ -582,6 +719,487 @@ func _update_level_detail_panel(level: LevelConfig) -> void:
 		tag_label.text = tag
 		tag_panel.add_child(tag_label)
 		tags_container.add_child(tag_panel)
+	
+	# Fetch and display leaderboard for this level (only if screen is visible)
+	if LootLockerManager and level_select_screen and level_select_screen.visible:
+		_fetch_level_leaderboard(level.level_id)
+		# DEBUG: Use mock leaderboard (uncomment below and comment above):
+		# _load_mock_leaderboard(level.level_id)
+
+
+## Generate mock leaderboard data for debugging (20 entries + player rank)
+func _generate_mock_leaderboard(level_id: int) -> Dictionary:
+	var entries = []
+	var player_names = [
+		"SpeedRunner", "OrbitMaster", "RocketAce", "StarPilot", "CosmicKing",
+		"AstroNinja", "GravityGuru", "FuelSaver", "TimeLord", "SpaceNav",
+		"OrbitalPro", "SkyWalker", "NovaHunter", "CelestialAce", "QuickOrbit",
+		"ThunderBolt", "SolarFlare", "MoonDancer", "StarChaser", "NebulaDrift"
+	]
+	
+	# Generate 20 top entries with decreasing scores
+	var base_score = 10000
+	var base_time = 60.0  # 1 minute
+	var base_fuel = 95.0
+	
+	for i in range(20):
+		var rank = i + 1
+		var score = base_score - (i * 200) - randi() % 100
+		var time = base_time + (i * 3.5) + randf() * 2.0
+		var fuel = base_fuel - (i * 2.0) - randf() * 3.0
+		
+		entries.append({
+			"rank": rank,
+			"score": score,
+			"member_id": player_names[i],
+			"metadata": {
+				"time": time,
+				"fuel": max(0.0, fuel)
+			}
+		})
+	
+	# Generate player's rank data (outside top 20)
+	var player_rank_data = {
+		"success": true,
+		"rank": 42,  # Player is ranked 42nd
+		"score": base_score - 5000,
+		"member_id": PlayerProfile.get_player_name(),
+		"metadata": {
+			"time": base_time + 85.0,
+			"fuel": 45.0
+		}
+	}
+	
+	return {
+		"entries": entries,
+		"player_rank": player_rank_data
+	}
+
+## Load mock leaderboard for debugging
+func _load_mock_leaderboard(level_id: int) -> void:
+	# Set as selected level
+	_selected_level_id = level_id
+	
+	var mock_data = _generate_mock_leaderboard(level_id)
+	
+	# Store in cache
+	_leaderboard_cache[level_id] = mock_data
+	_cache_timestamp[level_id] = Time.get_unix_time_from_system()
+	
+	# Display immediately
+	_display_cached_leaderboard(level_id)
+
+## Invalidate cached leaderboard for a specific level
+func _invalidate_leaderboard_cache(level_id: int) -> void:
+	if _leaderboard_cache.has(level_id):
+		_leaderboard_cache.erase(level_id)
+	if _cache_timestamp.has(level_id):
+		_cache_timestamp.erase(level_id)
+
+## Check if cached leaderboard is still valid
+func _is_cache_valid(level_id: int) -> bool:
+	if not _leaderboard_cache.has(level_id):
+		return false
+	
+	var cache_age = Time.get_unix_time_from_system() - _cache_timestamp.get(level_id, 0)
+	return cache_age < CACHE_EXPIRY_SECONDS
+
+## Fetch and display leaderboard for a specific level
+func _fetch_level_leaderboard(level_id: int) -> void:
+	# Track which level is selected for display
+	_selected_level_id = level_id
+	
+	# Get leaderboard container in side panel
+	var leaderboard_container = level_select_screen.get_node_or_null("MainContainer/LeaderboardPanel/MarginContainer/VBoxContainer/LeaderboardScroll/LeaderboardEntries")
+	if not leaderboard_container:
+		return
+	
+	# Check if we have valid cached data for the current level
+	print("[GameController] _fetch_level_leaderboard() - Checking cache for level ", level_id)
+	print("[GameController] Total cache size: ", _leaderboard_cache.size())
+	print("[GameController] Cache has level ", level_id, ": ", _leaderboard_cache.has(level_id))
+	if _is_cache_valid(level_id):
+		print("[GameController] Using VALID cache for level ", level_id)
+		_display_cached_leaderboard(level_id)
+		return
+	
+	# Show loading indicator immediately
+	_show_loading_indicator(leaderboard_container)
+	
+	# Fetch current level with display
+	await _fetch_leaderboard_with_display(level_id)
+
+
+## Show loading indicator in leaderboard container
+func _show_loading_indicator(container: Control) -> void:
+	# Clear existing entries
+	for child in container.get_children():
+		child.queue_free()
+	
+	var loading_label = Label.new()
+	loading_label.text = "Loading leaderboard..."
+	loading_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	container.add_child(loading_label)
+
+
+## Fetch leaderboard and display it (foreground task)
+func _fetch_leaderboard_with_display(level_id: int) -> void:
+	# Generate unique task ID
+	var task_id = Time.get_ticks_msec()
+	_active_fetch_tasks[level_id] = task_id
+	
+	# Fetch top 20 leaderboard entries
+	print("[GameController] Fetching leaderboard from LootLocker for level ", level_id)
+	LootLockerManager.fetch_leaderboard(level_id, 20)
+	var result = await LootLockerManager.leaderboard_fetched
+	
+	# Check if this task is still active (not cancelled by a new selection)
+	if not _active_fetch_tasks.has(level_id) or _active_fetch_tasks[level_id] != task_id:
+		print("[GameController] Task cancelled for level ", level_id)
+		return
+	
+	var success: bool = result[0]
+	var returned_level_id: int = result[1]
+	var entries: Array = result[2]
+	
+	print("[GameController] LootLocker fetch result - Success: ", success, ", Level: ", returned_level_id, ", Entries: ", entries.size())
+	
+	# Fetch player's rank
+	var player_rank_data: Dictionary = {}
+	if LootLockerManager.player_id > 0 and success:
+		var rank_result = await LootLockerManager.fetch_player_rank(level_id)
+		
+		# Check again if task is still active after await
+		if not _active_fetch_tasks.has(level_id) or _active_fetch_tasks[level_id] != task_id:
+			return
+		
+		if rank_result["success"]:
+			player_rank_data = rank_result
+	
+	# Store in cache if successful
+	if success:
+		print("[GameController] Storing ", entries.size(), " entries in cache for level ", returned_level_id)
+		_leaderboard_cache[returned_level_id] = {
+			"entries": entries,
+			"player_rank": player_rank_data
+		}
+		_cache_timestamp[returned_level_id] = Time.get_unix_time_from_system()
+		print("[GameController] Cache now has ", _leaderboard_cache.size(), " levels stored")
+	
+	# Only display if this is still the selected level
+	if _selected_level_id != level_id:
+		_active_fetch_tasks.erase(level_id)
+		return
+	
+	# Display the leaderboard
+	_display_cached_leaderboard(level_id)
+	
+	# Clean up task tracking
+	_active_fetch_tasks.erase(level_id)
+
+
+## Fetch and display player's global rank on game won screen
+func _fetch_and_display_global_rank(level_id: int) -> void:
+	if not global_rank_panel:
+		push_error("[GameController] ERROR: global_rank_panel is null!")
+		return
+	
+	# Get labels
+	var rank_label = global_rank_panel.get_node("VBoxContainer/RankLabel")
+	var percentage_label = global_rank_panel.get_node("VBoxContainer/PercentageLabel")
+	
+	if not rank_label or not percentage_label:
+		push_error("[GameController] ERROR: Labels not found!")
+		return
+	
+	# Check if LootLockerManager is available
+	if not LootLockerManager:
+		rank_label.text = "[center]Connect to Internet[/center]"
+		percentage_label.text = "[center]to submit scores & compete![/center]"
+		return
+	
+	# Show loading state
+	rank_label.text = "[center]Loading...[/center]"
+	percentage_label.text = ""
+	
+	# Wait a moment for score to be processed
+	await get_tree().create_timer(0.5).timeout
+	
+	# Fetch player's rank
+	var rank_result = await LootLockerManager.fetch_player_rank(level_id)
+	
+	if not rank_result["success"]:
+		rank_label.text = "[center]Connect to Internet[/center]"
+		percentage_label.text = "[center]to submit scores & compete![/center]"
+		return
+	
+	var player_rank: int = rank_result.get("rank", 0)
+	if player_rank == 0:
+		rank_label.text = "[center]No Rank Yet[/center]"
+		percentage_label.text = "[center]Complete more levels to rank![/center]"
+		return
+	
+	# Fetch total number of players for percentage calculation
+	LootLockerManager.fetch_leaderboard(level_id, 1)  # Just need metadata
+	var leaderboard_result = await LootLockerManager.leaderboard_fetched
+	var success: bool = leaderboard_result[0]
+	
+	if not success:
+		print("[GameController] Failed to fetch leaderboard for total count")
+		rank_label.text = "Connect to Internet"
+		percentage_label.text = "to submit scores & compete!"
+		return
+	
+	# Estimate total players (since LootLocker doesn't give us exact count, use rank as minimum)
+	# In a real scenario, you'd get this from the API metadata
+	var total_players: int = player_rank  # Conservative estimate
+	
+	# For better estimate, if we have cached data with many entries, use that
+	if _leaderboard_cache.has(level_id):
+		var entries = _leaderboard_cache[level_id].get("entries", [])
+		if entries.size() > 0:
+			var last_entry = entries[entries.size() - 1]
+			if last_entry.has("rank"):
+				total_players = max(total_players, last_entry["rank"])
+	
+	# Calculate percentage (lower is better)
+	var percentage: float = (float(player_rank) / float(total_players)) * 100.0
+	percentage = min(percentage, 100.0)  # Cap at 100%
+	
+	# Update labels with success
+	rank_label.text = "[center]RANK #%d[/center]" % player_rank
+	percentage_label.text = "[center]Top %.1f%% of players[/center]" % percentage
+	
+	# Start pulsing animation only on rank label
+	start_scale_pulse([rank_label])
+
+
+## Create synchronized scale pulsing animation for any controls
+## Pass an array of controls to pulse together synchronously
+func start_scale_pulse(controls: Array, scale_amount: float = 1.15, duration: float = 0.5) -> void:
+	if controls.is_empty():
+		return
+	
+	# Set pivot offset to center for each control to prevent shifting during scale
+	for control in controls:
+		if control:
+			control.pivot_offset = control.size / 2.0
+	
+	# Create a single tween for synchronized pulsing
+	var tween = create_tween()
+	tween.set_loops()
+	tween.set_parallel(true)  # All controls pulse at the same time
+	
+	# Pulse all controls from scale 1.0 to scale_amount
+	for control in controls:
+		if control:
+			tween.tween_property(control, "scale", Vector2(scale_amount, scale_amount), duration).set_trans(Tween.TRANS_SINE)
+	
+	tween.set_parallel(false)
+	
+	# Pulse back to normal scale
+	for control in controls:
+		if control:
+			tween.tween_property(control, "scale", Vector2(1.0, 1.0), duration).set_trans(Tween.TRANS_SINE)
+
+
+## Show encouragement message when score isn't a new best
+func _show_rank_encouragement_message(level_id: int) -> void:
+	if not global_rank_panel:
+		return
+	
+	# Get labels
+	var rank_label = global_rank_panel.get_node("VBoxContainer/RankLabel")
+	var percentage_label = global_rank_panel.get_node("VBoxContainer/PercentageLabel")
+	
+	if not rank_label or not percentage_label:
+		return
+	
+	# Fetch current rank to show (not a new best, but still show current standing)
+	if not LootLockerManager:
+		rank_label.text = "[center]Connect to Internet[/center]"
+		percentage_label.text = "[center]to submit scores & compete![/center]"
+		return
+	
+	rank_label.text = "[center]Loading...[/center]"
+	percentage_label.text = ""
+	
+	var rank_result = await LootLockerManager.fetch_player_rank(level_id)
+	
+	if not rank_result["success"]:
+		rank_label.text = "[center]Connect to Internet[/center]"
+		percentage_label.text = "[center]to submit scores & compete![/center]"
+		return
+	
+	var player_rank: int = rank_result.get("rank", 0)
+	if player_rank == 0:
+		rank_label.text = "[center]No Rank Yet[/center]"
+		percentage_label.text = "[center]Complete more levels![/center]"
+		return
+	
+	# Get the player's best score from the rank result
+	var best_score: int = rank_result.get("score", 0)
+	
+	# Show current rank and best score
+	rank_label.text = "[center]Current: Rank #%d[/center]" % player_rank
+	percentage_label.text = "[center]Your Best: %d pts | Beat it for a new rank![/center]" % best_score
+
+
+## Reset global rank panel to loading state
+func _reset_global_rank_panel() -> void:
+	if not global_rank_panel:
+		return
+	
+	var rank_label = global_rank_panel.get_node_or_null("VBoxContainer/RankLabel")
+	var percentage_label = global_rank_panel.get_node_or_null("VBoxContainer/PercentageLabel")
+	
+	if rank_label:
+		rank_label.text = "[center]Loading...[/center]"
+		# Reset modulate to default
+		rank_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	
+	if percentage_label:
+		percentage_label.text = ""
+		# Reset modulate to default
+		percentage_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
+
+
+## Display cached leaderboard data
+func _display_cached_leaderboard(level_id: int) -> void:
+	print("[GameController] _display_cached_leaderboard called for level ", level_id)
+	
+	var leaderboard_container = level_select_screen.get_node_or_null("MainContainer/LeaderboardPanel/MarginContainer/VBoxContainer/LeaderboardScroll/LeaderboardEntries")
+	if not leaderboard_container:
+		print("[GameController] ERROR: Leaderboard container not found!")
+		return
+	
+	print("[GameController] Leaderboard container found, clearing existing entries")
+	
+	# Clear existing entries
+	for child in leaderboard_container.get_children():
+		child.queue_free()
+	
+	var cache_data: Dictionary = _leaderboard_cache.get(level_id, {})
+	var entries: Array = cache_data.get("entries", [])
+	var player_rank_data: Dictionary = cache_data.get("player_rank", {})
+	
+	print("[GameController] Cache lookup for level ", level_id, " - Found: ", _leaderboard_cache.has(level_id))
+	print("[GameController] Retrieved ", entries.size(), " entries from cache data")
+	
+	if entries.is_empty():
+		print("[GameController] No entries, showing placeholder")
+		var no_data_label = Label.new()
+		no_data_label.text = "No leaderboard data yet\nBe the first to complete this level!"
+		no_data_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		no_data_label.add_theme_font_size_override("font_size", 18)
+		no_data_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		no_data_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		no_data_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		no_data_label.custom_minimum_size = Vector2(340, 100)
+		leaderboard_container.add_child(no_data_label)
+		return
+	
+	print("[GameController] Creating ", entries.size(), " leaderboard entries")
+	
+	# Add player's rank at the top if available and not in top 20
+	if player_rank_data.get("success", false):
+		var player_rank = player_rank_data.get("rank", 0)
+		if player_rank > 20:
+			# Add "Your Rank" label
+			var your_rank_label = Label.new()
+			your_rank_label.text = "YOUR RANK"
+			your_rank_label.add_theme_font_size_override("font_size", 14)
+			your_rank_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+			your_rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			leaderboard_container.add_child(your_rank_label)
+			
+			# Add player's entry
+			var player_entry = {
+				"rank": player_rank,
+				"score": player_rank_data.get("score", 0),
+				"member_id": player_rank_data.get("member_id", "You"),
+				"metadata": player_rank_data.get("metadata", {})
+			}
+			_create_leaderboard_entry(leaderboard_container, player_entry, true)
+			
+			# Add separator after player's entry
+			var separator = HSeparator.new()
+			leaderboard_container.add_child(separator)
+	
+	# Display top 20 entries
+	for entry in entries:
+		_create_leaderboard_entry(leaderboard_container, entry)
+
+
+## Create a leaderboard entry UI element
+func _create_leaderboard_entry(container: Control, entry: Dictionary, is_player: bool = false) -> void:
+	var entry_panel = PanelContainer.new()
+	entry_panel.custom_minimum_size = Vector2(0, 65)
+	
+	var panel_style = StyleBoxFlat.new()
+	if is_player:
+		# Highlight player's entry
+		panel_style.bg_color = Color(0.2, 0.4, 0.2, 0.8)
+	else:
+		panel_style.bg_color = Color(0.15, 0.15, 0.15, 0.7)
+	panel_style.corner_radius_top_left = 5
+	panel_style.corner_radius_top_right = 5
+	panel_style.corner_radius_bottom_left = 5
+	panel_style.corner_radius_bottom_right = 5
+	panel_style.content_margin_left = 12
+	panel_style.content_margin_right = 12
+	panel_style.content_margin_top = 8
+	panel_style.content_margin_bottom = 8
+	entry_panel.add_theme_stylebox_override("panel", panel_style)
+	
+	var hbox = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 10)
+	entry_panel.add_child(hbox)
+	
+	# Rank
+	var rank_label = Label.new()
+	rank_label.text = "#%d" % entry["rank"]
+	rank_label.add_theme_font_size_override("font_size", 16)
+	rank_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
+	rank_label.custom_minimum_size = Vector2(45, 0)
+	rank_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hbox.add_child(rank_label)
+	
+	# Player info (name + metadata)
+	var info_vbox = VBoxContainer.new()
+	info_vbox.add_theme_constant_override("separation", 3)
+	info_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(info_vbox)
+	
+	# Player name
+	var name_label = Label.new()
+	name_label.text = entry["member_id"]
+	name_label.add_theme_font_size_override("font_size", 15)
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	info_vbox.add_child(name_label)
+	
+	# Time and fuel from metadata
+	if entry["metadata"] and entry["metadata"].has("time") and entry["metadata"].has("fuel"):
+		var detail_label = Label.new()
+		var time_str = ScoringSystem.format_time(entry["metadata"]["time"])
+		detail_label.text = "Time: %s | Fuel: %.0f%%" % [time_str, entry["metadata"]["fuel"]]
+		detail_label.add_theme_font_size_override("font_size", 12)
+		detail_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+		info_vbox.add_child(detail_label)
+	
+	# Score
+	var score_label = Label.new()
+	score_label.text = "%d pts" % entry["score"]
+	score_label.add_theme_font_size_override("font_size", 16)
+	score_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	score_label.custom_minimum_size = Vector2(80, 0)
+	hbox.add_child(score_label)
+	
+	container.add_child(entry_panel)
+
 
 
 func _process(_delta: float) -> void:
@@ -662,6 +1280,14 @@ func show_start_screen() -> void:
 	start_screen.visible = true
 	start_button.grab_focus()
 	
+	# Clear all leaderboard caches when returning to main menu
+	print("[GameController] show_start_screen() - Clearing all caches")
+	print("[GameController] Before clear - Cache size: ", _leaderboard_cache.size())
+	_leaderboard_cache.clear()
+	_cache_timestamp.clear()
+	_active_fetch_tasks.clear()
+	print("[GameController] After clear - Cache size: ", _leaderboard_cache.size())
+	
 	# Hide HUD and touch controls on menu
 	if hud:
 		hud.visible = false
@@ -691,6 +1317,9 @@ func show_game_won() -> void:
 	_hide_all_screens()
 	game_won_screen.visible = true
 	
+	# Reset global rank panel to loading state
+	_reset_global_rank_panel()
+	
 	var fuel_percent := 0.0
 	var max_fuel := 1000.0
 	if orbiting_body and is_instance_valid(orbiting_body):
@@ -713,20 +1342,140 @@ func show_game_won() -> void:
 		max_fuel
 	)
 	
-	var stats_label = game_won_screen.get_node("CenterContainer/VBoxContainer/StatsLabel")
-	if stats_label and orbiting_body:
-		# Display comprehensive stats with score
+	# Create styled stats display
+	var stats_container = game_won_screen.get_node("CenterContainer/VBoxContainer/StatsLabel")
+	if stats_container and orbiting_body:
+		# Clear existing content if it's a label
+		if stats_container is Label:
+			# Replace the Label with an HBoxContainer for side-by-side layout
+			var parent = stats_container.get_parent()
+			var index = stats_container.get_index()
+			stats_container.queue_free()
+			
+			# Create new HBoxContainer
+			var hbox = HBoxContainer.new()
+			hbox.name = "StatsLabel"
+			hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+			parent.add_child(hbox)
+			parent.move_child(hbox, index)
+			stats_container = hbox
+		
+		# Clear any existing children
+		for child in stats_container.get_children():
+			child.queue_free()
+		
+		# Get grade info
+		var grade = score_data["grade"]
+		var grade_color: Color
+		match grade:
+			"S":
+				grade_color = Color(1.0, 0.85, 0.0)  # Gold
+			"A+", "A", "A-":
+				grade_color = Color(0.3, 1.0, 0.5)  # Green
+			"B+", "B", "B-":
+				grade_color = Color(0.4, 0.8, 1.0)  # Blue
+			"C+", "C", "C-":
+				grade_color = Color(1.0, 0.8, 0.4)  # Orange
+			"D+", "D":
+				grade_color = Color(1.0, 0.5, 0.3)  # Red-Orange
+			_:
+				grade_color = Color(0.6, 0.6, 0.6)  # Gray
+		
+		# Left side - Large grade letter
+		var grade_container = CenterContainer.new()
+		grade_container.custom_minimum_size = Vector2(120, 0)
+		stats_container.add_child(grade_container)
+		
+		# Wrapper control for absolute positioning
+		var grade_wrapper = Control.new()
+		grade_wrapper.custom_minimum_size = Vector2(120, 100)
+		grade_container.add_child(grade_wrapper)
+		
+		# Grade letter (centered)
+		var grade_label = Label.new()
+		grade_label.add_theme_font_override("font", AudiowideFont)
+		grade_label.add_theme_font_size_override("font_size", 80)
+		grade_label.add_theme_color_override("font_color", grade_color)
+		grade_label.text = grade
+		grade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		grade_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		grade_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+		grade_wrapper.add_child(grade_label)
+		
+		# "Tier" label anchored at top center (added after so it renders on top)
+		var tier_label = Label.new()
+		tier_label.add_theme_font_override("font", AudiowideFont)
+		tier_label.add_theme_font_size_override("font_size", 16)
+		tier_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+		tier_label.text = "Tier"
+		tier_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tier_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		tier_label.position.y = -5
+		grade_wrapper.add_child(tier_label)
+		
+		# Right side - Stats details
+		var stats_vbox = VBoxContainer.new()
+		stats_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		stats_container.add_child(stats_vbox)
+		
+		var score_label = Label.new()
+		score_label.add_theme_font_size_override("font_size", 28)
+		score_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+		score_label.text = "Score: %d" % score_data["total_score"]
+		stats_vbox.add_child(score_label)
+		
 		var time_str := ScoringSystem.format_time(_level_elapsed_time)
-		stats_label.text = "Grade: %s\nScore: %d\n\nTime: %s\nFuel remaining: %.1f%%" % [
-			score_data["grade"],
-			score_data["total_score"],
-			time_str,
-			fuel_percent
-		]
+		var time_label = Label.new()
+		time_label.add_theme_font_size_override("font_size", 20)
+		time_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+		time_label.text = "Time: %s" % time_str
+		stats_vbox.add_child(time_label)
+		
+		var fuel_label = Label.new()
+		fuel_label.add_theme_font_size_override("font_size", 20)
+		fuel_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+		fuel_label.text = "Fuel: %.1f%%" % fuel_percent
+		stats_vbox.add_child(fuel_label)
 	
 	if LevelManager:
 		# Pass score data to level manager instead of just fuel percentage
-		LevelManager.complete_level(score_data["total_score"], _level_elapsed_time, fuel_percent)
+		var is_new_local_best = LevelManager.complete_level(score_data["total_score"], _level_elapsed_time, fuel_percent)
+		print("[GameController] Level completed. Is new local best: ", is_new_local_best)
+		
+		# Always submit score to LootLocker and check if it's a server-side new best
+		if LootLockerManager:
+			print("[GameController] Submitting score to leaderboard...")
+			var metadata := {
+				"time": _level_elapsed_time,
+				"fuel": fuel_percent
+			}
+			
+			# Get current server best score before submitting
+			var old_rank_result = await LootLockerManager.fetch_player_rank(LevelManager.current_level_id)
+			var old_server_score = old_rank_result.get("score", 0) if old_rank_result.get("success", false) else 0
+			print("[GameController] Old server best score: ", old_server_score)
+			
+			# Submit the new score
+			LootLockerManager.submit_score(
+				LevelManager.current_level_id,
+				score_data["total_score"],
+				metadata
+			)
+			
+			# Wait for submission to process
+			await get_tree().create_timer(1.0).timeout
+			
+			# Invalidate cache so leaderboard refreshes with new score
+			_invalidate_leaderboard_cache(LevelManager.current_level_id)
+			
+			# Check if the new score is better than the old server score
+			var is_new_server_best = score_data["total_score"] > old_server_score
+			
+			# Always fetch and display global rank to show connection status
+			if is_new_server_best:
+				await _fetch_and_display_global_rank(LevelManager.current_level_id)
+			else:
+				await _show_rank_encouragement_message(LevelManager.current_level_id)
 		
 		if next_level_button:
 			next_level_button.visible = LevelManager.has_next_level()
@@ -788,6 +1537,15 @@ func show_level_select_screen(context: LevelSelectContext = LevelSelectContext.M
 	current_state = GameState.LEVEL_SELECT
 	_hide_all_screens()
 	level_select_screen.visible = true
+	
+	# Clear leaderboard caches when opening level select to ensure fresh data
+	print("[GameController] show_level_select_screen() - Clearing all caches")
+	print("[GameController] Before clear - Cache size: ", _leaderboard_cache.size())
+	_leaderboard_cache.clear()
+	_cache_timestamp.clear()
+	_active_fetch_tasks.clear()
+	print("[GameController] After clear - Cache size: ", _leaderboard_cache.size())
+	
 	_populate_level_buttons()
 	
 	for btn in level_buttons:
@@ -1156,6 +1914,27 @@ func _on_soi_visibility_pressed() -> void:
 	_update_soi_visibility_button_text()
 	if Events:
 		Events.soi_visibility_changed.emit(soi_visible)
+
+
+func _on_save_name_pressed() -> void:
+	var new_name: String = player_name_edit.text.strip_edges()
+	if new_name.length() > 0:
+		PlayerProfile.set_player_name(new_name)
+		_update_player_name_display()
+		player_name_edit.text = ""
+		player_name_edit.placeholder_text = "Name saved!"
+
+
+func _on_random_name_pressed() -> void:
+	var random_name: String = PlayerProfile.generate_random_name()
+	PlayerProfile.set_player_name(random_name)
+	_update_player_name_display()
+	player_name_edit.text = ""
+
+
+func _update_player_name_display() -> void:
+	var current_name: String = PlayerProfile.get_player_name()
+	player_name_label.text = "Player Name: " + current_name
 
 
 func _on_camera_zoom_changed(zoom_level: float) -> void:
