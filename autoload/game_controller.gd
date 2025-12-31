@@ -106,6 +106,14 @@ var _level_elapsed_time: float = 0.0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	
+	# Clear all leaderboard caches on new game launch
+	print("[GameController] _ready() - Clearing all caches on game launch")
+	print("[GameController] Before clear - Cache size: ", _leaderboard_cache.size())
+	_leaderboard_cache.clear()
+	_cache_timestamp.clear()
+	_active_fetch_tasks.clear()
+	print("[GameController] After clear - Cache size: ", _leaderboard_cache.size())
+	
 	# Connect to camera zoom events to persist zoom across levels
 	if Events:
 		Events.camera_zoom_changed.connect(_on_camera_zoom_changed)
@@ -712,8 +720,8 @@ func _update_level_detail_panel(level: LevelConfig) -> void:
 		tag_panel.add_child(tag_label)
 		tags_container.add_child(tag_panel)
 	
-	# Fetch and display leaderboard for this level
-	if LootLockerManager:
+	# Fetch and display leaderboard for this level (only if screen is visible)
+	if LootLockerManager and level_select_screen and level_select_screen.visible:
 		_fetch_level_leaderboard(level.level_id)
 		# DEBUG: Use mock leaderboard (uncomment below and comment above):
 		# _load_mock_leaderboard(level.level_id)
@@ -807,7 +815,11 @@ func _fetch_level_leaderboard(level_id: int) -> void:
 		return
 	
 	# Check if we have valid cached data for the current level
+	print("[GameController] _fetch_level_leaderboard() - Checking cache for level ", level_id)
+	print("[GameController] Total cache size: ", _leaderboard_cache.size())
+	print("[GameController] Cache has level ", level_id, ": ", _leaderboard_cache.has(level_id))
 	if _is_cache_valid(level_id):
+		print("[GameController] Using VALID cache for level ", level_id)
 		_display_cached_leaderboard(level_id)
 		return
 	
@@ -838,16 +850,20 @@ func _fetch_leaderboard_with_display(level_id: int) -> void:
 	_active_fetch_tasks[level_id] = task_id
 	
 	# Fetch top 20 leaderboard entries
+	print("[GameController] Fetching leaderboard from LootLocker for level ", level_id)
 	LootLockerManager.fetch_leaderboard(level_id, 20)
 	var result = await LootLockerManager.leaderboard_fetched
 	
 	# Check if this task is still active (not cancelled by a new selection)
 	if not _active_fetch_tasks.has(level_id) or _active_fetch_tasks[level_id] != task_id:
+		print("[GameController] Task cancelled for level ", level_id)
 		return
 	
 	var success: bool = result[0]
 	var returned_level_id: int = result[1]
 	var entries: Array = result[2]
+	
+	print("[GameController] LootLocker fetch result - Success: ", success, ", Level: ", returned_level_id, ", Entries: ", entries.size())
 	
 	# Fetch player's rank
 	var player_rank_data: Dictionary = {}
@@ -863,11 +879,13 @@ func _fetch_leaderboard_with_display(level_id: int) -> void:
 	
 	# Store in cache if successful
 	if success:
+		print("[GameController] Storing ", entries.size(), " entries in cache for level ", returned_level_id)
 		_leaderboard_cache[returned_level_id] = {
 			"entries": entries,
 			"player_rank": player_rank_data
 		}
 		_cache_timestamp[returned_level_id] = Time.get_unix_time_from_system()
+		print("[GameController] Cache now has ", _leaderboard_cache.size(), " levels stored")
 	
 	# Only display if this is still the selected level
 	if _selected_level_id != level_id:
@@ -1063,7 +1081,8 @@ func _display_cached_leaderboard(level_id: int) -> void:
 	var entries: Array = cache_data.get("entries", [])
 	var player_rank_data: Dictionary = cache_data.get("player_rank", {})
 	
-	print("[GameController] Cache data has ", entries.size(), " entries")
+	print("[GameController] Cache lookup for level ", level_id, " - Found: ", _leaderboard_cache.has(level_id))
+	print("[GameController] Retrieved ", entries.size(), " entries from cache data")
 	
 	if entries.is_empty():
 		print("[GameController] No entries, showing placeholder")
@@ -1258,6 +1277,14 @@ func show_start_screen() -> void:
 	start_screen.visible = true
 	start_button.grab_focus()
 	
+	# Clear all leaderboard caches when returning to main menu
+	print("[GameController] show_start_screen() - Clearing all caches")
+	print("[GameController] Before clear - Cache size: ", _leaderboard_cache.size())
+	_leaderboard_cache.clear()
+	_cache_timestamp.clear()
+	_active_fetch_tasks.clear()
+	print("[GameController] After clear - Cache size: ", _leaderboard_cache.size())
+	
 	# Hide HUD and touch controls on menu
 	if hud:
 		hud.visible = false
@@ -1423,6 +1450,15 @@ func show_level_select_screen(context: LevelSelectContext = LevelSelectContext.M
 	current_state = GameState.LEVEL_SELECT
 	_hide_all_screens()
 	level_select_screen.visible = true
+	
+	# Clear leaderboard caches when opening level select to ensure fresh data
+	print("[GameController] show_level_select_screen() - Clearing all caches")
+	print("[GameController] Before clear - Cache size: ", _leaderboard_cache.size())
+	_leaderboard_cache.clear()
+	_cache_timestamp.clear()
+	_active_fetch_tasks.clear()
+	print("[GameController] After clear - Cache size: ", _leaderboard_cache.size())
+	
 	_populate_level_buttons()
 	
 	for btn in level_buttons:
