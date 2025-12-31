@@ -24,11 +24,11 @@ extends Resource
 const STAGE_URL : String = "api.stage.internal.dev.lootlocker.cloud"
 const PROD_URL : String = "api.lootlocker.com"
 const SETTINGS_PATH : String = "res://LootLockerSettings.cfg"
-var apiKey : String = ""
-var gameVersion : String = ""
-var domainKey : String = ""
+var apiKey : String = "dev_4cc78e3bf7b84f2387c440a0377eb0ae"
+var gameVersion : String = "1.0.0"
+var domainKey : String = "mycqsyjg"
 var url : String
-var logLevel : String = ""
+var logLevel : String = "Info"
 
 static func _static_init() -> void:
 	if Engine.is_editor_hint():
@@ -57,6 +57,12 @@ static func GetInstance() -> LootLockerInternal_Settings:
 	return _instance
 
 func _init() -> void:
+	# Set up URL with hardcoded domain key in case config file fails to load
+	var urlStart = "https://"
+	if domainKey != "":
+		urlStart += domainKey + "."
+	url = urlStart + PROD_URL
+	
 	loadSettings()
 
 func loadSettings() -> void:

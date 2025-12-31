@@ -21,7 +21,6 @@ Events="*res://autoload/events.gd"
 LevelManager="*res://autoload/level_manager.gd"
 GameController="*res://autoload/game_controller.gd"
 LootLockerManager="*res://autoload/lootlocker_manager.gd"
-LootLockerSDK="*res://addons/LootLockerSDK/LootLockerSDK.gd"
 
 [display]
 
