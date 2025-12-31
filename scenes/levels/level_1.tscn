@@ -62,6 +62,7 @@ position = Vector2(1059, 609)
 script = ExtResource("5_planet")
 mass = 5.0
 is_static = true
+is_target = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/Planet1"]
 shape = SubResource("CircleShape2D_planet1")
@@ -82,11 +83,10 @@ shape = SubResource("CircleShape2D_planet2")
 texture = ExtResource("8_tex2")
 
 [node name="TargetPlanet" type="Area2D" parent="Planets"]
-position = Vector2(3801, 2118)
+position = Vector2(3801, 2120)
 script = ExtResource("5_planet")
 mass = 5.0
 is_static = true
-is_target = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Planets/TargetPlanet"]
 shape = SubResource("CircleShape2D_target")

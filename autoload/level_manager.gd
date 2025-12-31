@@ -148,7 +148,8 @@ func unlock_level(level_id: int) -> void:
 
 
 ## Complete current level
-func complete_level(score: int, time_elapsed: float, fuel_remaining_percent: float) -> void:
+## Returns true if this was a new best score
+func complete_level(score: int, time_elapsed: float, fuel_remaining_percent: float) -> bool:
 	var level_id := current_level_id
 	
 	# Update best score - store complete score data
@@ -176,6 +177,8 @@ func complete_level(score: int, time_elapsed: float, fuel_remaining_percent: flo
 	
 	if Events:
 		Events.level_completed.emit(level_id, fuel_remaining_percent)
+	
+	return is_new_best
 
 
 ## Get best score for a level

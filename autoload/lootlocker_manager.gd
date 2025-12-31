@@ -30,28 +30,22 @@ func _ready() -> void:
 
 ## Start a guest session with LootLocker using the SDK
 func start_guest_session() -> void:
-	print("[LootLocker] Starting guest session...")
 	if is_authenticated:
-		print("[LootLocker] Already authenticated")
 		authentication_completed.emit(true)
 		return
 	
 	var player_identifier := PlayerProfile.get_player_id()
-	print("[LootLocker] Player ID: ", player_identifier)
 	
 	var response = await LL_Authentication.GuestSession.new(player_identifier).send()
 	
 	if response.success:
 		is_authenticated = true
 		player_id = response.player_id
-		print("[LootLocker] Authentication successful! Player ID: ", player_id)
 		
 		# Set player name in LootLocker
 		var player_name = PlayerProfile.get_player_name()
 		var name_response = await LL_Players.SetPlayerName.new(player_name).send()
-		if name_response.success:
-			print("[LootLocker] Player name set to: ", player_name)
-		else:
+		if not name_response.success:
 			push_warning("[LootLocker] Failed to set player name")
 		
 		authentication_completed.emit(true)
@@ -86,9 +80,7 @@ func submit_score(level_id: int, score: int, metadata: Dictionary) -> void:
 		metadata_string
 	).send()
 	
-	if response.success:
-		print("LootLocker: Score submitted successfully for level " + str(level_id))
-	else:
+	if not response.success:
 		var error_msg = response.error_data.message if response.error_data else "Unknown error"
 		push_error("LootLocker: Score submission failed: " + error_msg)
 
@@ -96,12 +88,10 @@ func submit_score(level_id: int, score: int, metadata: Dictionary) -> void:
 ## Fetch leaderboard entries for a level using the SDK
 ## count: number of entries to fetch (default 10)
 func fetch_leaderboard(level_id: int, count: int = 10) -> void:
-	print("[LootLocker] Fetching leaderboard for level ", level_id)
 	if not is_authenticated:
 		push_warning("LootLocker: Not authenticated, attempting to authenticate first")
 		await authentication_completed
 		if not is_authenticated:
-			print("[LootLocker] Authentication failed, cannot fetch leaderboard")
 			leaderboard_fetched.emit(false, level_id, [])
 			return
 	
@@ -111,7 +101,6 @@ func fetch_leaderboard(level_id: int, count: int = 10) -> void:
 		return
 	
 	var leaderboard_id: int = leaderboard_ids[level_id]
-	print("[LootLocker] Leaderboard ID: ", leaderboard_id)
 	
 	var response = await LL_Leaderboards.GetScoreList.new(str(leaderboard_id), count).send()
 	
@@ -139,7 +128,6 @@ func fetch_leaderboard(level_id: int, count: int = 10) -> void:
 		
 		entries.append(entry)
 	
-	print("LootLocker: Fetched " + str(entries.size()) + " leaderboard entries for level " + str(level_id))
 	leaderboard_fetched.emit(true, level_id, entries)
 
 
@@ -186,5 +174,4 @@ func fetch_player_rank(level_id: int) -> Dictionary:
 		"metadata": metadata_dict
 	}
 	
-	print("LootLocker: Player rank for level ", level_id, " is ", response.rank)
 	return result
