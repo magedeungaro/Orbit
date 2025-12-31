@@ -1,6 +1,7 @@
 [gd_scene load_steps=11 format=3 uid="uid://c5level5scene"]
 
 [ext_resource type="Script" uid="uid://csvg6f6vuqqfe" path="res://scripts/managers/level_config.gd" id="1_config"]
+[ext_resource type="Texture2D" uid="uid://cm2a488wrx7bd" path="res://Assets/Scenarios thumbnails/Level 5 thumbnail.png" id="1_thumbnail"]
 [ext_resource type="Script" uid="uid://derr4cln3we0j" path="res://scripts/player/camera_follow.gd" id="2_camera"]
 [ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/core/orbit_visualization.gd" id="3_orbit_vis"]
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="4_bg"]
@@ -20,10 +21,13 @@ script = ExtResource("1_config")
 level_id = 5
 level_name = "Solar System"
 description = "Experience true n-body physics in a miniature solar system. Planets orbit the sun, creating moving targets and complex gravitational interactions."
-tags = Array[String](["Hard", "n-body", "Orbiting planets", "Challenge"])
+thumbnail = ExtResource("1_thumbnail")
+tags = Array[String](["Hard", "Patched Conic", "Orbiting Planets"])
 max_fuel = 800.0
 ship_start_velocity = Vector2(0, -410)
 stable_orbit_time = 12.0
+s_rank_target_time = 90.9
+s_rank_target_fuel = 74.79
 
 [node name="World" type="Node2D" parent="."]
 

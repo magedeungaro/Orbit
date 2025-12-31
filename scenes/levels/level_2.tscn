@@ -26,8 +26,10 @@ level_id = 2
 level_name = "Gravity Assist"
 description = "Use the gravitational pull of intermediate planets to conserve fuel. Plan your trajectory carefully to reach the distant target."
 thumbnail = ExtResource("1_thumbnail")
-tags = Array[String](["Medium", "Patched Conic", "Static Planets"])
+tags = Array[String](["Medium", "n-body", "Static Planets"])
 max_fuel = 800.0
+s_rank_target_time = 58.11
+s_rank_target_fuel = 69.17
 
 [node name="World" type="Node2D" parent="."]
 

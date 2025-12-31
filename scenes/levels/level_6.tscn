@@ -1,6 +1,7 @@
 [gd_scene load_steps=11 format=3 uid="uid://dlofysuttv8wk"]
 
 [ext_resource type="Script" uid="uid://csvg6f6vuqqfe" path="res://scripts/managers/level_config.gd" id="1_b6i88"]
+[ext_resource type="Texture2D" uid="uid://b2hv5jr5i428" path="res://Assets/Scenarios thumbnails/Level 6 thumbnail.png" id="1_thumbnail"]
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="2_e18e5"]
 [ext_resource type="Script" uid="uid://derr4cln3we0j" path="res://scripts/player/camera_follow.gd" id="3_m5qie"]
 [ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/core/orbit_visualization.gd" id="4_kydov"]
@@ -21,10 +22,13 @@ script = ExtResource("1_b6i88")
 level_id = 6
 level_name = "Solar System (Moon)"
 description = "The ultimate challenge: reach and orbit a moon that itself orbits a planet in a complex three-body system. Master the sphere of influence transitions."
-tags = Array[String](["Hard", "n-body", "Orbiting planets", "Challenge"])
+thumbnail = ExtResource("1_thumbnail")
+tags = Array[String](["Hard", "Patched Conic", "Orbiting Planets", "Challenge"])
 max_fuel = 800.0
 ship_start_velocity = Vector2(0, -410)
 stable_orbit_time = 12.0
+s_rank_target_time = 130.55
+s_rank_target_fuel = 44.17
 
 [node name="World" type="Node2D" parent="."]
 

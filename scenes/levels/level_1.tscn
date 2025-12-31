@@ -25,9 +25,9 @@ script = ExtResource("1_config")
 level_name = "First Steps"
 description = "Master the fundamentals of spaceflight. Learn to control your thrust angle and achieve a stable orbit around the target planet."
 thumbnail = ExtResource("1_thumbnail")
-tags = Array[String](["Easy", "Patched Conic", "Static Planets"])
-s_rank_target_time = 85.0
-s_rank_target_fuel = 70.0
+tags = Array[String](["Easy", "n-body", "Static Planets"])
+s_rank_target_time = 22.9
+s_rank_target_fuel = 65.17
 
 [node name="World" type="Node2D" parent="."]
 

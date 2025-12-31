@@ -1,6 +1,7 @@
 [gd_scene load_steps=13 format=3 uid="uid://c4level4scene"]
 
 [ext_resource type="Script" uid="uid://csvg6f6vuqqfe" path="res://scripts/managers/level_config.gd" id="1_config"]
+[ext_resource type="Texture2D" uid="uid://bfwjxrq0bag4q" path="res://Assets/Scenarios thumbnails/Level 4 thumbnail.png" id="1_thumbnail"]
 [ext_resource type="Script" uid="uid://derr4cln3we0j" path="res://scripts/player/camera_follow.gd" id="2_camera"]
 [ext_resource type="Script" uid="uid://dylyaj2or2lpb" path="res://scripts/core/orbit_visualization.gd" id="3_orbit_vis"]
 [ext_resource type="Texture2D" uid="uid://6axi75lpwytw" path="res://Assets/Sprites/Background.png" id="4_bg"]
@@ -24,9 +25,12 @@ script = ExtResource("1_config")
 level_id = 4
 level_name = "Deep Space"
 description = "Embark on an extended voyage across vast distances. Every drop of fuel counts in this endurance challenge."
-tags = Array[String](["Hard", "Patched Conic", "Static Planets", "Challenge"])
+thumbnail = ExtResource("1_thumbnail")
+tags = Array[String](["Medium", "n-body", "Static Planets"])
 max_fuel = 500.0
 stable_orbit_time = 15.0
+s_rank_target_time = 115.78
+s_rank_target_fuel = 71.17
 
 [node name="World" type="Node2D" parent="."]
 

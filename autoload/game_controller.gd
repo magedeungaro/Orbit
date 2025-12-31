@@ -1342,6 +1342,17 @@ func show_game_won() -> void:
 		max_fuel
 	)
 	
+	# DEBUG: Log completion stats for S-tier calibration
+	var separator = "=".repeat(60)
+	print(separator)
+	print("LEVEL COMPLETION DEBUG - Level %d" % LevelManager.current_level_id)
+	print(separator)
+	print("Time: %.2f seconds (S-rank target: %.2f)" % [_level_elapsed_time, s_rank_time])
+	print("Fuel: %.2f%% (S-rank target: %.2f%%)" % [fuel_percent, s_rank_fuel])
+	print("Grade: %s" % score_data["grade"])
+	print("Score: %d" % score_data["total_score"])
+	print(separator)
+	
 	# Create styled stats display
 	var stats_container = game_won_screen.get_node("CenterContainer/VBoxContainer/StatsLabel")
 	if stats_container and orbiting_body:
