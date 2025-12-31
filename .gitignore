@@ -2,4 +2,7 @@
 .godot/
 *.exe
 *.pck
-*.cfg
+export_presets.cfg
+
+# Include LootLocker settings (needed for exports)
+!LootLockerSettings.cfg
