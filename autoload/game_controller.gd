@@ -63,6 +63,7 @@ var crash_restart_button: Button
 var back_button: Button
 var touch_controls_button: Button
 var soi_visibility_button: Button
+var music_button: Button
 var player_name_label: Label
 var player_name_edit: LineEdit
 var save_name_button: Button
@@ -107,13 +108,22 @@ var _saved_zoom: float = 0.8  # Default zoom level
 # SOI visibility setting
 var soi_visible: bool = true
 
+# Music setting
+var music_enabled: bool = true
+
 # Level time tracking
 var _level_start_time: float = 0.0
 var _level_elapsed_time: float = 0.0
 
+# Settings save path
+const SETTINGS_SAVE_PATH := "user://game_settings.save"
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	
+	# Load saved settings
+	_load_settings()
 	
 	# Clear all leaderboard caches on new game launch
 	print("[GameController] _ready() - Clearing all caches on game launch")
@@ -228,6 +238,7 @@ func _setup_ui_screens() -> void:
 	ui_layer.add_child(options_screen)
 	touch_controls_button = options_screen.get_node("CenterContainer/VBoxContainer/TouchControlsButton")
 	soi_visibility_button = options_screen.get_node("CenterContainer/VBoxContainer/SOIVisibilityButton")
+	music_button = options_screen.get_node("CenterContainer/VBoxContainer/MusicButton")
 	player_name_label = options_screen.get_node("CenterContainer/VBoxContainer/PlayerNameLabel")
 	player_name_edit = options_screen.get_node("CenterContainer/VBoxContainer/PlayerNameEdit")
 	save_name_button = options_screen.get_node("CenterContainer/VBoxContainer/NameButtonsContainer/SaveNameButton")
@@ -235,6 +246,7 @@ func _setup_ui_screens() -> void:
 	back_button = options_screen.get_node("CenterContainer/VBoxContainer/BackButton")
 	touch_controls_button.pressed.connect(_on_touch_controls_pressed)
 	soi_visibility_button.pressed.connect(_on_soi_visibility_pressed)
+	music_button.pressed.connect(_on_music_pressed)
 	save_name_button.pressed.connect(_on_save_name_pressed)
 	random_name_button.pressed.connect(_on_random_name_pressed)
 	back_button.pressed.connect(_on_back_pressed)
@@ -1547,6 +1559,7 @@ func show_options_screen() -> void:
 	options_screen.visible = true
 	_update_touch_controls_button_text()
 	_update_soi_visibility_button_text()
+	_update_music_button_text()
 	touch_controls_button.grab_focus()
 
 
@@ -1556,6 +1569,7 @@ func show_options_from_pause() -> void:
 	options_screen.visible = true
 	_update_touch_controls_button_text()
 	_update_soi_visibility_button_text()
+	_update_music_button_text()
 	touch_controls_button.grab_focus()
 
 
@@ -1844,6 +1858,13 @@ func _update_soi_visibility_button_text() -> void:
 	soi_visibility_button.text = "SOI Display: " + state_text
 
 
+func _update_music_button_text() -> void:
+	if not music_button:
+		return
+	var state_text := "On" if music_enabled else "Off"
+	music_button.text = "Music: " + state_text
+
+
 func _on_start_pressed() -> void:
 	start_game()
 
@@ -1943,8 +1964,23 @@ func _on_touch_controls_pressed() -> void:
 func _on_soi_visibility_pressed() -> void:
 	soi_visible = not soi_visible
 	_update_soi_visibility_button_text()
+	_save_settings()
 	if Events:
 		Events.soi_visibility_changed.emit(soi_visible)
+
+
+func _on_music_pressed() -> void:
+	music_enabled = not music_enabled
+	_update_music_button_text()
+	_save_settings()
+	
+	if music_enabled:
+		# Start music if it's not already playing
+		if music_player and not music_player.playing:
+			_play_random_music()
+	else:
+		# Stop music
+		_stop_music()
 
 
 func _on_save_name_pressed() -> void:
@@ -1993,7 +2029,7 @@ func _setup_music_player() -> void:
 
 ## Start playing random background music
 func _play_random_music() -> void:
-	if MUSIC_TRACKS.is_empty():
+	if MUSIC_TRACKS.is_empty() or not music_enabled:
 		return
 	
 	# Select a random track
@@ -2005,11 +2041,51 @@ func _play_random_music() -> void:
 
 ## Called when current music track finishes
 func _on_music_finished() -> void:
-	# Play another random track
-	_play_random_music()
+	# Play another random track only if music is still enabled
+	if music_enabled:
+		_play_random_music()
 
 
 ## Stop background music
 func _stop_music() -> void:
 	if music_player and music_player.playing:
 		music_player.stop()
+
+
+## Save game settings to file
+func _save_settings() -> void:
+	var settings_data := {
+		"music_enabled": music_enabled,
+		"soi_visible": soi_visible,
+		"version": 1
+	}
+	
+	var file := FileAccess.open(SETTINGS_SAVE_PATH, FileAccess.WRITE)
+	if file:
+		file.store_var(settings_data)
+		file.close()
+		print("[GameController] Settings saved")
+		if Events:
+			Events.settings_saved.emit()
+
+
+## Load game settings from file
+func _load_settings() -> void:
+	if not FileAccess.file_exists(SETTINGS_SAVE_PATH):
+		print("[GameController] No settings file found, using defaults")
+		return
+	
+	var file := FileAccess.open(SETTINGS_SAVE_PATH, FileAccess.READ)
+	if file:
+		var settings_data = file.get_var()
+		file.close()
+		
+		if settings_data is Dictionary:
+			if "music_enabled" in settings_data:
+				music_enabled = settings_data["music_enabled"]
+			if "soi_visible" in settings_data:
+				soi_visible = settings_data["soi_visible"]
+			
+			print("[GameController] Settings loaded - Music: %s, SOI: %s" % [music_enabled, soi_visible])
+			if Events:
+				Events.settings_loaded.emit()
