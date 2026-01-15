@@ -15,7 +15,16 @@ const HUDScript = preload("res://scripts/ui/hud.gd")
 const TouchControlsScene = preload("res://scenes/ui/touch_controls.tscn")
 const AudiowideFont = preload("res://Assets/fonts/Audiowide/Audiowide-Regular.ttf")
 
+# Music tracks
+const MUSIC_TRACKS: Array[AudioStream] = [
+	preload("res://Assets/tracks/Star Drifter.wav"),
+	preload("res://Assets/tracks/Travelling Space.wav")
+]
+
 var current_state: GameState = GameState.START_SCREEN
+
+# Background music player
+var music_player: AudioStreamPlayer = null
 
 # References to current level components (found after level loads)
 var current_level_root: Node2D = null
@@ -133,6 +142,9 @@ func _ready() -> void:
 	touch_controls_manager = TouchControlsScene.instantiate()
 	touch_controls_manager.layer = 11
 	add_child(touch_controls_manager)
+	
+	# Setup background music player
+	_setup_music_player()
 	
 	_setup_ui_screens()
 	
@@ -1298,6 +1310,10 @@ func show_start_screen() -> void:
 	if LevelManager:
 		LevelManager.current_level_id = 1
 	
+	# Start background music if not already playing
+	if music_player and not music_player.playing:
+		_play_random_music()
+	
 	# Load level 1 as menu background
 	_load_menu_background()
 
@@ -1632,6 +1648,10 @@ func start_game() -> void:
 	if touch_controls_manager:
 		touch_controls_manager.visible = true
 	
+	# Start background music if not already playing
+	if music_player and not music_player.playing:
+		_play_random_music()
+	
 	if Events:
 		Events.game_started.emit()
 
@@ -1958,3 +1978,38 @@ func _on_ship_exploded() -> void:
 
 func is_game_active() -> bool:
 	return current_state == GameState.PLAYING
+
+
+## Setup the background music player
+func _setup_music_player() -> void:
+	music_player = AudioStreamPlayer.new()
+	music_player.bus = "Master"
+	music_player.volume_db = -5.0  # Slightly quieter background music
+	add_child(music_player)
+	
+	# Connect to finished signal to play next track
+	music_player.finished.connect(_on_music_finished)
+
+
+## Start playing random background music
+func _play_random_music() -> void:
+	if MUSIC_TRACKS.is_empty():
+		return
+	
+	# Select a random track
+	var random_index = randi() % MUSIC_TRACKS.size()
+	music_player.stream = MUSIC_TRACKS[random_index]
+	music_player.play()
+	print("[GameController] Playing music track: ", random_index + 1)
+
+
+## Called when current music track finishes
+func _on_music_finished() -> void:
+	# Play another random track
+	_play_random_music()
+
+
+## Stop background music
+func _stop_music() -> void:
+	if music_player and music_player.playing:
+		music_player.stop()

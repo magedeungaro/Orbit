@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://mq6bcyfeg1i0"
+path="res://.godot/imported/Star Drifter.wav-3a1abc82a4f9c03fa789d37fb954e70e.sample"
+
+[deps]
+
+source_file="res://Assets/tracks/Star Drifter.wav"
+dest_files=["res://.godot/imported/Star Drifter.wav-3a1abc82a4f9c03fa789d37fb954e70e.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2
